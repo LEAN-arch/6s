@@ -15,11 +15,12 @@ SME Definitive Overhaul:
 - **Graceful Degradation:** Every single plot, chart, and metric is now
   encapsulated in its own `try...except` block. A failure in one component
   will display a localized error and **will not crash the application**.
-- All flawed caching has been removed. Expensive calculations are now performed
-  live and in-scope to guarantee state consistency and correctness.
+- All flawed caching has been removed and re-implemented correctly where it is
+  safe and effective (e.g., Bayesian Optimization).
 - All rich educational content, analogies, and visualizations have been preserved
   and fully restored.
 """
+
 import logging
 import pandas as pd
 import numpy as np
@@ -46,6 +47,26 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Helper Functions ---
+# DEFINITIVE FIX: Define the objective function at the top level to make it picklable for caching.
+def _bayesian_objective_func(params, df_opt_serializable):
+    """Objective function for Bayesian optimization."""
+    df_opt = pd.DataFrame(df_opt_serializable)
+    x, y = params
+    # Find the closest point in our grid to the sampled point and return its negative z-value
+    return -df_opt.loc[((df_opt['x'] - x)**2 + (df_opt['y'] - y)**2).idxmin()]['z']
+
+@st.cache_data
+def run_bayesian_optimization(df_opt_serializable, n_calls=15):
+    """Cached function to run expensive Bayesian Optimization."""
+    bounds = [Real(-5, 5, name='x'), Real(-5, 5, name='y')]
+    result = gp_minimize(
+        lambda params: _bayesian_objective_func(params, df_opt_serializable),
+        bounds,
+        n_calls=n_calls,
+        random_state=42
+    )
+    return result
+
 def st_shap(plot, height: int = None) -> None:
     """Render SHAP plots in Streamlit with error handling."""
     try:
@@ -77,8 +98,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             try:
                 with st.spinner("Training predictive models..."):
                     features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
-                    target = 'final_qc_outcome'
-                    X = df_pred[features]; y = df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+                    X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
                     model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
                     model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
@@ -172,8 +192,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         if df_opt is None or df_opt.empty: st.warning("Optimization data is not available.")
         else:
             try:
-                with st.spinner("Running Bayesian optimization..."):
-                    result = run_bayesian_optimization(df_opt.to_dict('records'))
+                result = run_bayesian_optimization(df_opt.to_dict('records'))
                 sampled_points = np.array(result.x_iters)
                 col1, col2 = st.columns(2)
                 with col1:
