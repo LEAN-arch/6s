@@ -103,38 +103,29 @@ def render_fty_dashboard(ssm: SessionStateManager) -> None:
 
         with viz_cols[1]:
             st.markdown("**Rolled Throughput Yield (RTY) Waterfall**")
-            fig_waterfall = go.Figure()
-            last_val = 1.0
             
-            # Initial bar starting at 100%
-            fig_waterfall.add_trace(go.Waterfall(
-                name="Start", x=["Process Start"], measure=["absolute"],
-                base=0, y=[1], text=["100%"],
-                decreasing={"marker":{"color":"#1f77b4"}} # Use a neutral color
-            ))
-            
-            for _, row in step_summary.iterrows():
-                yield_loss = last_val * (1 - row['fty'])
-                fig_waterfall.add_trace(go.Waterfall(
-                    name=row['step_name'], x=[row['step_name']],
-                    base=last_val - yield_loss, y=[-yield_loss], measure=['relative'],
-                    text=[f"{-yield_loss:.2%}"],
-                    decreasing={"marker":{"color":"#d62728"}}
-                ))
-                last_val -= yield_loss
+            y_values = [1] + list(step_summary['rty'].values)
+            text_values = [f"{val:.1%}" for val in y_values]
+            measure_values = ["absolute"] + ["relative"] * len(step_summary)
+            x_values = ["Process Start"] + list(step_summary['step_name'].values)
 
-            fig_waterfall.add_trace(go.Waterfall(
-                name="Final RTY", x=["Final RTY"], measure=["total"],
-                base=0, y=[last_val],
-                text=[f"{last_val:.2%}"],
-                totals={"marker":{"color":"#2ca02c"}}
+            fig_waterfall = go.Figure(go.Waterfall(
+                name="RTY",
+                orientation="v",
+                measure=measure_values,
+                x=x_values,
+                text=text_values,
+                y=np.diff(np.insert(y_values, 0, 0)),
+                connector={"line": {"color": "rgb(63, 63, 63)"}},
+                decreasing={"marker": {"color": "#d62728"}},
+                increasing={"marker": {"color": "#2ca02c"}},
+                totals={"marker": {"color": "#1f77b4"}}
             ))
             
             fig_waterfall.update_layout(
                 title="How Yield Loss Accumulates",
-                waterfallgap=0.2, showlegend=False,
-                height=450, margin=dict(t=50, b=10),
-                yaxis_tickformat='.0%'
+                yaxis_tickformat='.0%',
+                height=450, margin=dict(t=50, b=10)
             )
             st.plotly_chart(fig_waterfall, use_container_width=True)
 
