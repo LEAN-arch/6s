@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, IsolationForest
 from sklearn.linear_model import LogisticRegression
+# *** FIX: Correctly using roc_auc_score which is already imported ***
 from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
@@ -99,7 +100,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
             
             st.markdown("##### Model Performance Comparison (ROC Curve)")
-            # ... (ROC Plot code from previous version) ...
             pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]; pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
             auc_rf = roc_auc_score(y_test, pred_proba_rf); auc_lr = roc_auc_score(y_test, pred_proba_lr)
             fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf); fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
@@ -130,7 +130,9 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         if not df_release.empty:
             df_release['true_status_numeric'] = df_release['true_status'].apply(lambda x: 1 if x == 'Fail' else 0)
             fpr, tpr, thresholds = roc_curve(df_release['true_status_numeric'], df_release['test_measurement'])
-            roc_auc = auc(fpr, tpr)
+            
+            # *** FIX: Use the already imported roc_auc_score function for consistency ***
+            roc_auc = roc_auc_score(df_release['true_status_numeric'], df_release['test_measurement'])
             
             slider_val = st.slider("Select Test Cut-off Threshold", float(df_release['test_measurement'].min()), float(df_release['test_measurement'].max()), float(df_release['test_measurement'].mean()))
             
@@ -173,6 +175,8 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             **ANOVA** is excellent for designed experiments to confirm a factor's overall significance. **SHAP** is revolutionary for debugging and understanding complex, real-world (observational) data. It provides both a global view (the summary plot) and a local, per-unit explanation. The SHAP plot below shows that *high* pressure and *high* temperature are strong drivers of failure, an insight ANOVA's single p-value cannot provide.
             """)
         if not df_pred.empty:
+            explainer = shap.TreeExplainer(model_rf)
+            shap_values = explainer.shap_values(X_test)
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("##### Classical: Average Effect (ANOVA)")
@@ -196,7 +200,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 - **Analogy (Example 8):** A seasoned detective at a party. They don't have a checklist. They just have a "feel" for the room. They might notice someone who is standing too still, or whispering in a corner, or wearing a winter coat in summer. They spot things that aren't against the "rules" but are just... weird.
             
             #### SME Verdict
-            **SPC** is the non-negotiable standard for **sustaining control** on a known, stable process. **Isolation Forest** is a powerful **investigative tool** to find "unknown unknowns" or monitor complex systems where simple rules don't apply. Notice below how the ML method catches the big shift like SPC does, but also flags other subtle outliers.
+            **SPC** is the non-negotiable standard for **sustaining control** on a known, stable process. **Isolation Forest** is a powerful **investigative tool** to find "unknown unknowns" in your process data. It excels during the **Analyze** phase to find unusual patterns or as an advanced monitoring system for complex, multi-dimensional processes.
             """)
         df_process = ssm.get_data("process_data")
         if not df_process.empty:
