@@ -1,20 +1,18 @@
 # six_sigma/app.py
 """
-Main application entry point for the Six Sigma Quality Command Center.
+Main application entry point for the Six Sigma Master Black Belt (MBB) Command Center.
 
-This Streamlit application is the primary digital toolkit for a Quality and
-Process Improvement Engineer. It is designed to drive continuous improvement,
-cost savings, and process efficiency across global manufacturing sites.
-
-The Command Center provides tools for monitoring Key Performance Indicators (KPIs),
-analyzing the Cost of Poor Quality (COPQ) and First Time Right (FTR), executing
-DMAIC improvement projects, and leveraging predictive analytics to foster a
-culture of "Quality at the Source."
+This Streamlit application is the primary digital workspace for a Six Sigma MBB,
+focused on executing high-impact improvement projects. The architecture is
+centered on the DMAIC methodology, supported by deep-dive analytical modules
+for identifying and quantifying opportunities (COPQ, FTY) and for advanced
+statistical analysis.
 
 SME Overhaul:
-- Re-architected tab structure for a more intuitive Quality Engineering workflow.
-- Added imports for new, dedicated FTR and COPQ analysis dashboards.
-- Refined branding and titles for a more professional feel.
+- The entire application architecture is now centered on the DMAIC workflow.
+- A professional sidebar navigation is used instead of tabs.
+- Imports are updated to reflect new, dedicated modules for FTY, COPQ, and advanced tools.
+- Branding and titles are elevated to reflect an expert-level, MBB-focused toolkit.
 """
 
 # --- Standard Library Imports ---
@@ -29,26 +27,23 @@ import streamlit as st
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
+    if project_root not in sys.path: sys.path.insert(0, project_root)
 except Exception as e:
     project_root = os.path.abspath(os.path.join(os.getcwd(), "."))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-    st.warning(f"Could not precisely determine project root. Assuming '{project_root}'. Module imports may fail. Error: {e}")
+    if project_root not in sys.path: sys.path.insert(0, project_root)
+    st.warning(f"Path correction failed: {e}. Assuming execution from project root.")
 
 # --- Local Application Imports ---
 try:
     from six_sigma.data.session_state_manager import SessionStateManager
-    from six_sigma.dashboards.global_operations_dashboard import render_global_dashboard
-    from six_sigma.dashboards.copq_dashboard import render_copq_dashboard
-    from six_sigma.dashboards.ftr_dashboard import render_ftr_dashboard
     from six_sigma.dashboards.dmaic_toolkit import render_dmaic_toolkit
+    from six_sigma.dashboards.copq_dashboard import render_copq_dashboard
+    from six_sigma.dashboards.fty_dashboard import render_fty_dashboard
     from six_sigma.dashboards.advanced_tools_suite import render_advanced_tools_suite
-    from six_sigma.dashboards.kaizen_training_hub import render_kaizen_training_hub
+    from six_sigma.dashboards.project_pipeline import render_project_pipeline
 except ImportError as e:
-    st.error(f"Fatal Error: A required local module could not be imported: {e}. "
-             "Please ensure the application's directory structure is correct and all "
+    st.error(f"Fatal Error: A required module could not be imported: {e}. "
+             "Please ensure the project structure is correct and all "
              "subdirectories contain an `__init__.py` file.")
     logging.critical(f"Fatal module import error: {e}", exc_info=True)
     st.stop()
@@ -56,7 +51,7 @@ except ImportError as e:
 # --- Page Configuration ---
 st.set_page_config(
     layout="wide",
-    page_title="Six Sigma Quality Command Center",
+    page_title="Six Sigma DMAIC Command Center",
     page_icon="📈"
 )
 
@@ -70,8 +65,8 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Main function to initialize the Session State and render the Streamlit app."""
-    st.title("📈 Six Sigma Quality Command Center")
-    st.caption("A Data-Driven Toolkit for Process Excellence and Continuous Improvement")
+    st.title("📈 Six Sigma DMAIC Command Center")
+    st.caption("A Master Black Belt's Toolkit for Data-Driven Process Improvement")
 
     try:
         ssm = SessionStateManager()
@@ -81,34 +76,34 @@ def main() -> None:
         logger.critical(f"Failed to instantiate SessionStateManager: {e}", exc_info=True)
         st.stop()
 
-    # SME Overhaul: New tab structure for a more logical engineering workflow
-    tab_titles = [
-        "🌍 **Global KPI Dashboard**",
-        "💰 **COPQ Analysis Center**",
-        "✅ **First Time Right (FTR) Analysis**",
-        "🛠️ **DMAIC Improvement Toolkit**",
-        "🔮 **Advanced Tools Suite**",
-        "🎓 **Kaizen & Training Hub**"
-    ]
-    tabs = st.tabs(tab_titles)
+    # --- Sidebar for Navigation ---
+    st.sidebar.title("Navigation")
+    app_mode = st.sidebar.radio(
+        "Select a Workspace",
+        [
+            "DMAIC Project Workspace",
+            "Improvement Project Pipeline",
+            "First Time Yield (FTY) Analysis",
+            "Cost of Poor Quality (COPQ) Analysis",
+            "Advanced Statistical Tools"
+        ],
+        help="Select a workspace. The DMAIC Toolkit is the primary module for executing projects."
+    )
+    st.sidebar.markdown("---")
+    st.sidebar.info("This application is a dedicated workspace for executing and managing Six Sigma improvement projects.")
 
-    with tabs[0]:
-        render_global_dashboard(ssm)
-
-    with tabs[1]:
-        render_copq_dashboard(ssm)
-
-    with tabs[2]:
-        render_ftr_dashboard(ssm)
-
-    with tabs[3]:
+    # --- Main Panel Rendering ---
+    if app_mode == "DMAIC Project Workspace":
         render_dmaic_toolkit(ssm)
-        
-    with tabs[4]:
+    elif app_mode == "Improvement Project Pipeline":
+        render_project_pipeline(ssm)
+    elif app_mode == "First Time Yield (FTY) Analysis":
+        render_fty_dashboard(ssm)
+    elif app_mode == "Cost of Poor Quality (COPQ) Analysis":
+        render_copq_dashboard(ssm)
+    elif app_mode == "Advanced Statistical Tools":
         render_advanced_tools_suite(ssm)
 
-    with tabs[5]:
-        render_kaizen_training_hub(ssm)
 
 # ==============================================================================
 # --- SCRIPT EXECUTION ---
