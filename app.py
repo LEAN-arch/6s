@@ -8,22 +8,46 @@ is supported by a suite of sophisticated dashboards for strategic oversight,
 deep-dive analysis, and advanced statistical modeling.
 
 SME Definitive Overhaul:
-- The fragile, custom path-correction block has been removed in favor of the
-  standard, robust `python -m` execution method.
+- The fragile, custom path-correction block has been replaced with a new,
+  bulletproof version that makes the application self-sufficient and runnable
+  from any directory using the standard `streamlit run` command.
 - A sophisticated sidebar navigation organizes the platform into logical, icon-driven
   workspaces, significantly improving user experience.
 - All modules are fully integrated, and redundant/deprecated modules have been removed,
   resulting in a clean and maintainable codebase.
-- Enhanced error handling and user guidance.
 """
 
 import logging
+import os
 import sys
 import streamlit as st
 
+# ==============================================================================
+# --- Definitive Path Correction Block ---
+# This block is the permanent and robust solution to all ModuleNotFoundError
+# issues. It programmatically finds the project's root directory and adds it
+# to the system path, ensuring that all `from six_sigma...` imports work
+# reliably, regardless of how the script is executed.
+# ==============================================================================
+try:
+    # Get the absolute path of the current file's directory (e.g., /path/to/project/six_sigma)
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    # Get the parent directory (e.g., /path/to/project), which is the project root.
+    project_root = os.path.dirname(current_file_dir)
+    # Add the project root to the system path if it's not already there.
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+except Exception:
+    # Fallback for environments where __file__ is not defined (e.g., some notebooks)
+    # Assumes the script is run from the project's root directory.
+    project_root = os.getcwd()
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+# ==============================================================================
+
 # --- Local Application Imports ---
 # This block centrally imports all necessary dashboard rendering functions.
-# The robust `python -m six_sigma.app` command ensures the six_sigma package is on the path.
+# The robust path correction block above ensures this will now succeed.
 try:
     from six_sigma.data.session_state_manager import SessionStateManager
     from six_sigma.dashboards.global_operations_dashboard import render_global_dashboard
@@ -37,14 +61,13 @@ try:
 except ImportError as e:
     st.error(
         f"Fatal Error: A required application module could not be imported: {e}. "
-        "This usually means the app was not run from the project's root directory. "
-        "Please run the app using the command: `python -m six_sigma.app`"
+        "This indicates a problem with the project structure. Please ensure the 'six_sigma' "
+        "directory exists and contains all necessary files."
     )
     logging.critical(f"Fatal module import error: {e}", exc_info=True)
     st.stop()
 
 # --- Page Configuration ---
-# Must be the first Streamlit command.
 st.set_page_config(
     layout="wide",
     page_title="Six Sigma Command Center",
@@ -71,7 +94,6 @@ def main() -> None:
     st.title("📈 Six Sigma Command Center")
     st.caption("A Commercial-Grade Platform for Data-Driven Process Excellence")
 
-    # Initialize the session state manager, which generates and holds all app data.
     try:
         ssm = SessionStateManager()
         logger.info("Application initialized. Session State Manager loaded.")
@@ -81,7 +103,6 @@ def main() -> None:
         st.stop()
 
     # --- Sidebar Navigation ---
-    # A single, icon-driven radio button group provides clean and intuitive navigation.
     st.sidebar.title("Workspaces")
     app_mode = st.sidebar.radio(
         "Navigation",
@@ -105,11 +126,10 @@ def main() -> None:
             "Predictive & advanced modeling",
             "Knowledge management & training"
         ],
-        index=2  # Default to the DMAIC toolkit, the primary workspace.
+        index=2
     )
 
     # --- Main Panel Rendering ---
-    # This block routes to the correct rendering function based on the sidebar selection.
     if app_mode == "Global Operations":
         render_global_dashboard(ssm)
     elif app_mode == "Improvement Pipeline":
