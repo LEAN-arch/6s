@@ -15,6 +15,7 @@ SME Overhaul:
 """
 
 import logging
+from typing import Tuple  # <--- FIX: Added missing import
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -24,7 +25,9 @@ from statsmodels.formula.api import ols
 
 logger = logging.getLogger(__name__)
 
-def create_control_chart(data_series: pd.Series, title: str, lsl: float, usl: float) -> go.Figure:
+def create_control_chart(
+    data_series: pd.Series, title: str, lsl: float, usl: float
+) -> go.Figure:
     """Creates an Individual (I) control chart."""
     if data_series.empty or len(data_series) < 2:
         return go.Figure().update_layout(title="No data available for control chart.")
@@ -34,7 +37,6 @@ def create_control_chart(data_series: pd.Series, title: str, lsl: float, usl: fl
     if mr.empty: mr_mean = np.nan
     else: mr_mean = mr.mean()
     
-    # Check for NaN mr_mean before calculation
     if pd.isna(mr_mean) or mr_mean == 0:
         ucl_i, lcl_i = np.nan, np.nan
     else:
@@ -58,7 +60,9 @@ def create_control_chart(data_series: pd.Series, title: str, lsl: float, usl: fl
     fig.update_layout(title=f"<b>Control Chart (I-Chart) for {title}</b>", xaxis_title="Observation Number", yaxis_title="Measurement Value", showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 
-def create_histogram_with_specs(data_series: pd.Series, lsl: float, usl: float, title: str) -> go.Figure:
+def create_histogram_with_specs(
+    data_series: pd.Series, lsl: float, usl: float, title: str
+) -> go.Figure:
     """Creates a histogram overlaid with specification limits."""
     if data_series.empty: return go.Figure().update_layout(title="No data available for histogram.")
     
@@ -72,11 +76,9 @@ def create_histogram_with_specs(data_series: pd.Series, lsl: float, usl: float, 
 
 def create_gage_rr_plots(df: pd.DataFrame) -> Tuple[go.Figure, go.Figure]:
     """Creates standard plots for a Gage R&R study: variation breakdown and interaction."""
-    # Plot 1: Variation by Operator and Part
     fig1 = px.box(df, x='operator', y='measurement', title="<b>Measurement Variation by Operator</b>", points="all")
     fig1.update_traces(quartilemethod="exclusive")
     
-    # Plot 2: Part-Operator Interaction Plot
     interaction_df = df.groupby(['operator', 'part_id'])['measurement'].mean().reset_index()
     fig2 = px.line(interaction_df, x='part_id', y='measurement', color='operator',
                    title="<b>Part-Operator Interaction Plot</b>", markers=True)
@@ -86,14 +88,14 @@ def create_gage_rr_plots(df: pd.DataFrame) -> Tuple[go.Figure, go.Figure]:
 
 def create_doe_plots(df: pd.DataFrame, factors: List[str], response: str) -> Tuple[go.Figure, go.Figure, go.Figure]:
     """Creates Main Effects, Interaction, and 3D Surface plots for a DOE."""
-    # Main Effects
+    from typing import List # <--- FIX: Added local import
+    
     main_effects_fig = make_subplots(rows=1, cols=len(factors), subplot_titles=[f.title() for f in factors])
     for i, factor in enumerate(factors):
         effect_data = df.groupby(factor)[response].mean().reset_index()
         main_effects_fig.add_trace(go.Scatter(x=effect_data[factor], y=effect_data[response], mode='lines+markers'), row=1, col=i+1)
     main_effects_fig.update_layout(title_text="<b>Main Effects Plots</b>", showlegend=False, height=350)
 
-    # Interaction Plots
     interaction_fig = make_subplots(rows=1, cols=3, subplot_titles=("Temp:Time", "Temp:Pressure", "Time:Pressure"))
     interaction_pairs = [('temp', 'time'), ('temp', 'pressure'), ('time', 'pressure')]
     for i, (f1, f2) in enumerate(interaction_pairs):
@@ -103,7 +105,6 @@ def create_doe_plots(df: pd.DataFrame, factors: List[str], response: str) -> Tup
             interaction_fig.add_trace(go.Scatter(x=subset[f1], y=subset[response], name=f'{f2}={level}', mode='lines+markers', legendgroup=f'group{i}'), row=1, col=i+1)
     interaction_fig.update_layout(title_text="<b>Interaction Plots</b>", height=350)
 
-    # 3D Response Surface
     formula = f"Q('{response}') ~ Q('{factors[0]}')*Q('{factors[1]}') + I(Q('{factors[0]}')**2) + I(Q('{factors[1]}')**2)"
     try:
         model = ols(formula, data=df).fit()
