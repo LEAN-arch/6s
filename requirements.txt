@@ -1,4 +1,4 @@
-# Python Requirements for the Philips Quality Optimization Command Center
+# Python Requirements for the Six Sigma Quality Command Center
 
 # Core web application framework
 streamlit==1.34.0
@@ -14,3 +14,6 @@ plotly==5.21.0
 
 # Machine learning library for classification, metrics, and data splitting
 scikit-learn==1.4.2
+
+# Required by pandas for advanced styling features like background_gradient
+matplotlib==3.8.4
