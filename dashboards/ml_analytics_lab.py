@@ -56,26 +56,6 @@ def run_bayesian_optimization(df_opt_serializable, n_calls=15):
     result = gp_minimize(objective_func, bounds, n_calls=n_calls, random_state=42)
     return result
 
-@st.cache_data
-def get_shap_explanation_objects(_df_pred):
-    """
-    Definitive fix: Encapsulates the entire SHAP workflow into a single,
-    cached function to guarantee data, model, and explainer consistency.
-    """
-    features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
-    target = 'final_qc_outcome'
-    X, y = _df_pred[features], _df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
-    # Use a consistent random_state for splitting
-    X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-    
-    # Train a model specifically for this explanation
-    model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-    
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X_test)
-    
-    return {"explainer": explainer, "shap_values": shap_values, "X_test": X_test}
-
 def st_shap(plot, height=None):
     """Helper to render SHAP plots in Streamlit."""
     shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
@@ -87,6 +67,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     st.markdown("A comparative lab to understand the strengths and weaknesses of traditional statistical methods versus modern ML approaches for common Six Sigma tasks. This workspace is designed to build intuition and expand your analytical toolkit.")
 
     # --- Centralized Model Training ---
+    # We train the models once and cache them. This is a safe and efficient pre-computation.
     models_trained = False
     df_pred = ssm.get_data("predictive_quality_data")
     if not df_pred.empty:
@@ -95,6 +76,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
         
+        # Use @st.cache_resource to cache the actual model objects
         @st.cache_resource
         def get_trained_models():
             with st.spinner("Training predictive models (first run only)..."):
@@ -148,16 +130,9 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("##### Performance Comparison (ROC Curve)")
-            
-            pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]
-            pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
-            auc_rf = roc_auc_score(y_test, pred_proba_rf)
-            auc_lr = roc_auc_score(y_test, pred_proba_lr)
-
-            # *** FIX: Re-introduce the roc_curve calculation for both models ***
-            fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf)
-            fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
-            
+            pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]; pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
+            auc_rf = roc_auc_score(y_test, pred_proba_rf); auc_lr = roc_auc_score(y_test, pred_proba_lr)
+            fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf); fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, mode='lines', name=f'Random Forest (AUC = {auc_rf:.3f})', line=dict(width=3)))
             fig.add_trace(go.Scatter(x=fpr_lr, y=tpr_lr, mode='lines', name=f'Logistic Regression (AUC = {auc_lr:.3f})', line=dict(width=3)))
@@ -222,14 +197,12 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
             """)
         
-        if df_pred.empty:
-            st.warning("Predictive quality data is not available.")
-        else:
-            # Call the new encapsulated and cached function
-            shap_objects = get_shap_explanation_objects(df_pred)
-            explainer = shap_objects["explainer"]
-            shap_values = shap_objects["shap_values"]
-            X_test_shap = shap_objects["X_test"]
+        if models_trained:
+            # *** DEFINITIVE FIX: Perform SHAP calculation within this tab's scope for robustness ***
+            # This ensures that the model, explainer, data, and shap_values are always in sync.
+            with st.spinner("Calculating SHAP values for driver analysis..."):
+                explainer = shap.TreeExplainer(model_rf)
+                shap_values = explainer.shap_values(X_test)
 
             st.markdown("##### Global Feature Importance")
             col1, col2 = st.columns(2)
@@ -239,13 +212,15 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 st.plotly_chart(fig_box, use_container_width=True)
             with col2:
                 st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test_shap, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
+                fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
             
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("##### Local (Single Prediction) Explanation")
             st.info("Select a specific unit from the test set to see exactly why the Random Forest model predicted it would fail or pass.")
-            instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test_shap)-1, 0)
-            st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test_shap.iloc[instance_idx,:], link="logit"))
+            instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
+            st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test.iloc[instance_idx,:], link="logit"))
+        else:
+            st.warning("Predictive quality data is not available or model training failed.")
 
     # ==================== TAB 4: PROCESS CONTROL (Anomaly Detection) ====================
     with tabs[3]:
