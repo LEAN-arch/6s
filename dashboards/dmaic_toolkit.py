@@ -1,3 +1,4 @@
+#dmaic_toolkit.py
 """
 Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
 workspace for project execution within the Command Center.
@@ -142,7 +143,10 @@ def _render_measure_phase(ssm: SessionStateManager, project_data: Dict[str, Any]
                     st.dataframe(results_df.style.format({'% Contribution': '{:.2f}%'}).background_gradient(cmap='Reds', subset=['% Contribution']))
                     if total_grr_contrib < 10: st.success(f"**Verdict:** System is **Acceptable** ({total_grr_contrib:.2f}%)")
                     else: st.error(f"**Verdict:** System is **Unacceptable** ({total_grr_contrib:.2f}%)")
-                with grr_cols[1]: fig1, fig2 = create_gage_rr_plots(gage_data); st.plotly_chart(fig1, use_container_width=True); st.plotly_chart(fig2, use_container_width=True)
+                with grr_cols[1]: 
+                    fig1, fig2 = create_gage_rr_plots(gage_data)
+                    st.plotly_chart(fig1, use_container_width=True)
+                    st.plotly_chart(fig2, use_container_width=True)
             else:
                 st.error("Gage R&R analysis failed to produce results.")
     except Exception as e:
@@ -152,13 +156,15 @@ def _render_measure_phase(ssm: SessionStateManager, project_data: Dict[str, Any]
     with st.expander("##### 📖 Explore Measure Phase Tollgate Documents & Tools"):
         doc_tabs = st.tabs(["Data Collection Plan", "Value Stream Map (VSM)"])
         with doc_tabs[0]:
-            st.markdown("**Data Collection Plan**"); st.dataframe({'Metric to Collect': [metric_name], 'Data Type': ['Continuous'], 'Tool': ['Calipers #DC-04']}, hide_index=True)
+            st.markdown("**Data Collection Plan**")
+            st.dataframe({'Metric to Collect': [metric_name], 'Data Type': ['Continuous'], 'Tool': ['Calipers #DC-04']}, hide_index=True)
         with doc_tabs[1]:
             st.markdown("**Value Stream Map (VSM) - Visualization**")
             try:
                 vsm_data = pd.DataFrame([{'Category': 'Total Lead Time', 'Type': 'Value-Add Time', 'Time (mins)': 11}, {'Category': 'Total Lead Time', 'Type': 'Non-Value-Add Time (Waste)', 'Time (mins)': 210}])
                 fig = px.bar(vsm_data, x='Time (mins)', y='Category', color='Type', orientation='h', text='Time (mins)', title='Process Cycle Efficiency (PCE)', color_discrete_map={'Value-Add Time': 'green', 'Non-Value-Add Time (Waste)': 'red'})
-                st.plotly_chart(fig, use_container_width=True); st.metric("Process Cycle Efficiency", "4.98%", "Highly inefficient", delta_color="inverse")
+                st.plotly_chart(fig, use_container_width=True)
+                st.metric("Process Cycle Efficiency", "4.98%", "Highly inefficient", delta_color="inverse")
             except Exception as e:
                 st.error(f"Could not render VSM chart: {e}")
 
@@ -171,9 +177,12 @@ def _render_analyze_phase(project_data: Dict[str, Any]) -> None:
     
     st.markdown("#### Root Cause Brainstorming & Verification")
     rca_cols = st.columns(2)
-    with rca_cols[0]: _render_fishbone_diagram(effect="Low Sub-Assembly Yield")
+    with rca_cols[0]:
+        st.markdown("##### Fishbone Diagram")
+        _render_fishbone_diagram(effect="Low Sub-Assembly Yield")
     with rca_cols[1]:
-        st.markdown("##### 5 Whys Analysis"); st.info("Drill down past symptoms to find the true root cause.")
+        st.markdown("##### 5 Whys Analysis")
+        st.info("Drill down past symptoms to find the true root cause.")
         st.text_input("1. Why is yield low?", "The alignment fixture is inconsistent.", key=f"why1_analyze")
         st.text_input("2. Why is it inconsistent?", "It wears down quickly.", key=f"why2_analyze")
         st.error("**Root Cause:** Process oversight during design transfer.", icon="🔑")
@@ -187,8 +196,10 @@ def _render_analyze_phase(project_data: Dict[str, Any]) -> None:
         try:
             result = perform_hypothesis_test(ht_shifts['shift_1'], ht_shifts['shift_2'])
             st.plotly_chart(px.box(pd.melt(ht_shifts, var_name='Group', value_name='Value'), x='Group', y='Value', color='Group', title="Hypothesis Test: Comparison of Production Shifts"), use_container_width=True)
-            if result.get('reject_null'): st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}).")
-            else: st.warning(f"**Conclusion:** The difference is not statistically significant (p = {result.get('p_value', 0):.4f}).")
+            if result.get('reject_null'):
+                st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}).")
+            else:
+                st.warning(f"**Conclusion:** The difference is not statistically significant (p = {result.get('p_value', 0):.4f}).")
         except Exception as e:
             st.error(f"Could not perform hypothesis test: {e}")
 
@@ -230,15 +241,17 @@ def _render_improve_phase(ssm: SessionStateManager) -> None:
         if doe_data is None or doe_data.empty:
             st.warning("No DOE data available.")
         else:
-            factors, response = ['temp', 'time', 'pressure'], 'strength']; doe_plots = create_doe_plots(doe_data, factors, response)
-            st.plotly_chart(doe_plots['main_effects'], use_container_width=True); st.plotly_chart(doe_plots['interaction'], use_container_width=True)
+            # *** DEFINITIVE FIX: Correct the syntax by removing the stray ']' ***
+            factors, response = ['temp', 'time', 'pressure'], 'strength'
+            doe_plots = create_doe_plots(doe_data, factors, response)
+            st.plotly_chart(doe_plots['main_effects'], use_container_width=True)
+            st.plotly_chart(doe_plots['interaction'], use_container_width=True)
             st.success("**DOE Conclusion:** The analysis reveals that **Time** has the largest positive effect on bond strength.")
     except Exception as e:
         st.error(f"Could not render DOE plots: {e}")
         
     st.markdown("---")
     with st.expander("##### 📖 Explore Improve Phase Tollgate Documents & Tools"):
-        # ... (Content remains the same but with added try/except blocks) ...
         doc_tabs = st.tabs(["Solution Selection (Pugh Matrix)", "Implementation Plan"])
         with doc_tabs[0]:
             st.markdown("**Solution Selection (Pugh Matrix)**")
@@ -275,7 +288,6 @@ def _render_control_phase(project_data: Dict[str, Any], capability_metrics: Dict
         
     st.markdown("---")
     with st.expander("##### 📖 Explore Control Phase Tollgate Documents & Tools"):
-        # ... (Content remains the same) ...
         doc_tabs = st.tabs(["Control Plan", "Response Plan", "Lessons Learned"])
         with doc_tabs[0]: st.markdown("**Finalized Control Plan**"); control_plan_data = { 'Process Step': ['Sub-Assembly Fixture', 'Sub-Assembly Fixture'], 'Critical Input (X)': ['Fixture Material Hardness', 'Fixture PM Schedule'], 'Specification': ['Rockwell HRC 58-62', 'Quarterly'], 'Control Method': ['Material Cert', 'CMMS Work Order']}; st.dataframe(pd.DataFrame(control_plan_data), hide_index=True)
         with doc_tabs[1]: st.markdown("**Response Plan (Out-of-Control Action Plan)**"); st.warning("**IF** a point on the I-MR chart violates a control limit, **THEN**:"); st.markdown("""1. Stop the line...""")
@@ -289,7 +301,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     st.header("🛠️ DMAIC Project Execution Toolkit")
     st.markdown("Select an active improvement project below to access the full suite of DMAIC tools. This is your primary workspace for project execution, from definition to control.")
 
-    # --- Initial Data Loading and Validation ---
     if not isinstance(ssm, SessionStateManager):
         st.error("Invalid SessionStateManager instance provided."); return
         
@@ -299,7 +310,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     if not projects or not dmaic_data:
         st.warning("DMAIC project data not found. Please ensure it is generated in the SessionStateManager."); return
 
-    # --- Project Selection Logic ---
     project_titles = {p['id']: f"{p['id']}: {p['title']}" for p in projects}
     if 'selected_project_id' not in st.session_state or st.session_state.selected_project_id not in project_titles:
         st.session_state.selected_project_id = list(project_titles.keys())[0]
@@ -312,15 +322,12 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     if not project or not project_data:
         st.error(f"Could not load all data for project {selected_id}."); return
         
-    # --- Shared State Calculation ---
-    # Calculate baseline capability once and pass it to Measure and Control phases
     baseline_series = project_data.get("baseline", {}).get("measurement", pd.Series())
     specs = project_data.get("specs", {})
     capability_metrics = {}
     if not baseline_series.empty and specs:
         capability_metrics = calculate_process_performance(baseline_series, specs['lsl'], specs['usl'])
     
-    # --- Tab Rendering ---
     phase_tabs = st.tabs(["**✅ DEFINE**", "**📏 MEASURE**", "**🔍 ANALYZE**", "**💡 IMPROVE**", "**🛡️ CONTROL**"])
     
     with phase_tabs[0]: _render_define_phase(project)
