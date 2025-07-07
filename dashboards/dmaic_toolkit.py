@@ -1,27 +1,3 @@
-"""
-Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
-workspace for project execution within the Command Center.
-
-This module provides an interactive, end-to-end environment for executing
-complex Six Sigma projects. It guides an MBB through each phase of the DMAIC
-methodology (Define, Measure, Analyze, Improve, Control), embedding the
-application's advanced statistical and plotting utilities directly into the
-project workflow.
-
-SME Masterclass Overhaul:
-- Architected as a fully integrated, DYNAMIC project-centric workspace. Selecting
-  a project now loads a dataset SPECIFIC to that project's problem.
-- **Massively Extended:** Each DMAIC phase now includes an expandable 'Tollgate
-  Documents' section, providing detailed, realistic examples and SME explanations
-  for a comprehensive suite of Six Sigma tools (e.g., VOC/Kano, FMEA, Pugh Matrix).
-- **Visually Rich:** All tollgate documents have been enhanced with professional
-  visualizations, including Graphviz diagrams, Pareto charts, VSM charts, and more,
-  transforming the toolkit into a world-class educational resource.
-- The Control phase shows a direct "before and after" comparison, visualizing
-  the simulated success of the project against the initial baseline.
-, encoding='utf-8'
-"""
-
 import logging
 import pandas as pd
 import streamlit as st
@@ -29,7 +5,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import statsmodels.api as sm
-
+from typing import Dict, Optional
 from six_sigma.data.session_state_manager import SessionStateManager
 from six_sigma.utils.plotting import create_imr_chart, create_histogram_with_specs, create_doe_plots, create_gage_rr_plots
 from six_sigma.utils.stats import calculate_process_performance, perform_hypothesis_test, perform_anova_on_dataframe, calculate_gage_rr
@@ -40,6 +16,11 @@ logger = logging.getLogger(__name__)
 
 def validate_datasets(ssm: SessionStateManager) -> bool:
     """Validate all required datasets for the DMAIC toolkit."""
+    if not isinstance(ssm, SessionStateManager):
+        st.error("SessionStateManager is not properly initialized.")
+        logger.error("Invalid SessionStateManager instance")
+        return False
+
     datasets = {
         "dmaic_projects": ["id", "title", "site", "product_line", "start_date", "team", "problem_statement", "goal_statement"],
         "dmaic_project_data": ["baseline", "specs", "shifts"],
@@ -54,22 +35,37 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                 logger.error(f"Invalid {dataset} structure")
                 return False
         elif dataset == "dmaic_project_data":
-            if not isinstance(data, dict) or not data or not all(isinstance(p.get("baseline", {}).get("measurement"), pd.Series) and all(k in p.get("specs", {}) for k in ["lsl", "usl", "target"]) for p in data.values()):
-                st.error(f"Invalid {dataset} structure.")
-                logger.error(f"Invalid {dataset} structure")
+            if not isinstance(data, dict) or not data:
+                st.error(f"Invalid {dataset} structure: empty or not a dictionary.")
+                logger.error(f"Invalid {dataset} structure: {type(data)}")
                 return False
+            for p in data.values():
+                baseline = p.get("baseline", {}).get("measurement")
+                specs = p.get("specs", {})
+                if not isinstance(baseline, pd.Series) or baseline.empty or not pd.api.types.is_numeric_dtype(baseline):
+                    st.error(f"Invalid baseline measurement in {dataset}.")
+                    logger.error(f"Invalid baseline measurement: {type(baseline)}")
+                    return False
+                if not all(k in specs for k in ["lsl", "usl", "target"]):
+                    st.error(f"Missing specification limits in {dataset}.")
+                    logger.error(f"Missing specs: {specs.keys()}")
+                    return False
         else:
             if data.empty or (required_cols and not all(col in data.columns for col in required_cols)):
                 st.error(f"Invalid or missing {dataset}.")
                 logger.error(f"Invalid {dataset}: {data.columns.tolist() if not data.empty else 'empty'}")
                 return False
+            if dataset == "doe_data" and not all(pd.api.types.is_numeric_dtype(data[col]) for col in required_cols):
+                st.error(f"Non-numeric data found in {dataset} columns.")
+                logger.error(f"Non-numeric data in {dataset} columns: {data.dtypes}")
+                return False
     return True
 
-def _render_fishbone_diagram(effect: str):
-    """Renders a visually appealing Fishbone (Ishikawa) diagram for RCA using Graphviz."""
-    if not effect or not isinstance(effect, str):
-        logger.error("Invalid effect parameter for Fishbone diagram")
-        st.error("Invalid effect parameter for Fishbone diagram")
+def _render_fishbone_diagram(effect: str) -> None:
+    """Renders a Fishbone (Ishikawa) diagram for RCA using Graphviz."""
+    if not isinstance(effect, str) or not effect.strip():
+        st.error("Invalid or empty effect parameter for Fishbone diagram.")
+        logger.error("Invalid effect parameter: %s", effect)
         return
     st.markdown("##### Fishbone Diagram: Potential Causes")
     causes = {
@@ -81,36 +77,26 @@ def _render_fishbone_diagram(effect: str):
         "Method": ["Outdated SOP", "Inefficient assembly sequence"]
     }
     try:
-        # Pre-process labels to escape quotes
         escaped_effect = effect.replace('"', '\\"')
         sub_labels = [
-            "{} [label=\"{}\", shape=ellipse, fillcolor=lightyellow] -> {}".format(
-                f"{cat}_sub{i}",
-                sub.replace('"', '\\"'),
-                cat
-            )
+            f"{cat}_sub{i} [label=\"{sub.replace('\"', '\\\"')}\", shape=ellipse, fillcolor=lightyellow] -> {cat}"
             for cat, subs in causes.items()
             for i, sub in enumerate(subs)
         ]
-        dot = r'''
-        digraph {
+        dot = f'''
+        digraph {{
             rankdir=LR;
             node [shape=box, style=filled, fillcolor=lightblue];
-            Effect [label="%s", fillcolor=firebrick, fontcolor=white];
-            %s;
-            %s;
-            %s;
-        }
-        ''' % (
-            escaped_effect,
-            "; ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()]),
-            "; ".join([f"{cat} -> Effect" for cat in causes.keys()]),
-            "; ".join(sub_labels)
-        )
+            Effect [label="{escaped_effect}", fillcolor=firebrick, fontcolor=white];
+            {" ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()])};
+            {" ".join([f"{cat} -> Effect" for cat in causes.keys()])};
+            {" ".join(sub_labels)};
+        }}
+        '''
         st.graphviz_chart(dot)
     except Exception as e:
-        st.error("Failed to render Fishbone diagram.")
-        logger.error(f"Fishbone diagram rendering failed: {e}")
+        st.error("Failed to render Fishbone diagram due to Graphviz error.")
+        logger.error("Fishbone diagram rendering failed: %s", e, exc_info=True)
 
 def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     """Creates the UI for the DMAIC Improvement Toolkit workspace."""
@@ -127,8 +113,16 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     try:
         projects = ssm.get_data("dmaic_projects")
         dmaic_data = ssm.get_data("dmaic_project_data")
+        if not projects:
+            st.error("No projects available.")
+            logger.error("No projects found in dmaic_projects")
+            return
         project_titles = {p['id']: f"{p['id']}: {p['title']}" for p in projects}
-        if not hasattr(st.session_state, 'selected_project_id') or st.session_state.selected_project_id not in project_titles:
+        if not project_titles:
+            st.error("No valid project titles found.")
+            logger.error("Project titles dictionary is empty")
+            return
+        if 'selected_project_id' not in st.session_state or st.session_state.selected_project_id not in project_titles:
             st.session_state.selected_project_id = list(project_titles.keys())[0]
         selected_id = st.selectbox("**Select Active Project:**", options=list(project_titles.keys()), format_func=lambda x: project_titles[x], help="The analysis in the tabs below will update based on this selection.")
         project = next((p for p in projects if p['id'] == selected_id), None)
@@ -176,17 +170,17 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                             digraph {
                                 rankdir=LR;
                                 node [shape=box, style=rounded];
-                                Suppliers [label="Suppliers\\n- Component Vendors\\n- Sub-Assembly Line"];
-                                Inputs [label="Inputs\\n- Capacitors, PCBs\\n- Housing, Screws"];
-                                Process [label="Process Steps\\n1. Inspect\\n2. Assemble\\n3. Solder\\n4. Test"];
-                                Outputs [label="Outputs\\n- Functional Module"];
-                                Customers [label="Customers\\n- Main Assembly Line\\n- Final Product"];
+                                Suppliers [label="Suppliers\n- Component Vendors\n- Sub-Assembly Line"];
+                                Inputs [label="Inputs\n- Capacitors, PCBs\n- Housing, Screws"];
+                                Process [label="Process Steps\n1. Inspect\n2. Assemble\n3. Solder\n4. Test"];
+                                Outputs [label="Outputs\n- Functional Module"];
+                                Customers [label="Customers\n- Main Assembly Line\n- Final Product"];
                                 Suppliers -> Inputs -> Process -> Outputs -> Customers;
                             }
                         ''')
                     except Exception as e:
-                        st.error("Failed to render SIPOC diagram.")
-                        logger.error(f"SIPOC diagram rendering failed: {e}")
+                        st.error("Failed to render SIPOC diagram due to Graphviz error.")
+                        logger.error("SIPOC diagram rendering failed: %s", e, exc_info=True)
                 with doc_tabs[1]:
                     st.markdown("**Voice of the Customer (VOC) & Critical-to-Quality (CTQ) Tree**")
                     st.caption("Translate customer needs into measurable product/process characteristics.")
@@ -206,7 +200,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                             st.plotly_chart(fig, use_container_width=True)
                         except Exception as e:
                             st.error("Failed to render Kano model plot.")
-                            logger.error(f"Kano model plot failed: {e}")
+                            logger.error("Kano model plot failed: %s", e, exc_info=True)
                     with col2:
                         st.markdown("###### CTQ Tree")
                         st.write("The needs are broken down into measurable requirements.")
@@ -219,8 +213,8 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                                 }
                             ''')
                         except Exception as e:
-                            st.error("Failed to render CTQ tree.")
-                            logger.error(f"CTQ tree rendering failed: {e}")
+                            st.error("Failed to render CTQ tree due to Graphviz error.")
+                            logger.error("CTQ tree rendering failed: %s", e, exc_info=True)
                 with doc_tabs[2]:
                     st.markdown("**Stakeholder Analysis / RACI Matrix**")
                     st.caption("Defines the roles and responsibilities of team members. (Responsible, Accountable, Consulted, Informed)")
@@ -233,17 +227,17 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     raci_df = pd.DataFrame(raci_data).set_index('Task')
                     def color_raci(val):
                         colors = {
-                            'R': 'background-color: #a8d8ea',  # Light Blue
-                            'A': 'background-color: #f4c7c3',  # Light Red
-                            'C': 'background-color: #b8d8be',  # Light Green
-                            'I': 'background-color: #e0e0e0'   # Light Grey
+                            'R': 'background-color: #a8d8ea',
+                            'A': 'background-color: #f4c7c3',
+                            'C': 'background-color: #b8d8be',
+                            'I': 'background-color: #e0e0e0'
                         }
                         return colors.get(val, '')
                     try:
-                        st.dataframe(raci_df.style.map(color_raci), use_container_width=True)
+                        st.dataframe(raci_df.style.applymap(color_raci), use_container_width=True)
                     except Exception as e:
                         st.error("Failed to render RACI matrix.")
-                        logger.error(f"RACI matrix rendering failed: {e}")
+                        logger.error("RACI matrix rendering failed: %s", e, exc_info=True)
 
         # ==================== MEASURE PHASE ====================
         with phase_tabs[1]:
@@ -272,7 +266,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         plot_cols[1].plotly_chart(create_imr_chart(baseline_series, metric_name, specs['lsl'], specs['usl']), use_container_width=True)
                     except Exception as e:
                         st.error("Failed to generate baseline process plots.")
-                        logger.error(f"Baseline process plots failed: {e}")
+                        logger.error("Baseline process plots failed: %s", e, exc_info=True)
 
             st.markdown("---")
             st.markdown("#### 2. Validate the Measurement System (Gage R&R)")
@@ -301,7 +295,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         logger.error("Gage R&R results empty")
                 except Exception as e:
                     st.error("Failed to perform Gage R&R analysis.")
-                    logger.error(f"Gage R&R failed: {e}")
+                    logger.error("Gage R&R failed: %s", e, exc_info=True)
 
             st.markdown("---")
             with st.expander("##### 📖 Explore Measure Phase Tollgate Documents & Tools"):
@@ -316,7 +310,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         }, hide_index=True)
                     except Exception as e:
                         st.error("Failed to render Data Collection Plan.")
-                        logger.error(f"Data Collection Plan rendering failed: {e}")
+                        logger.error("Data Collection Plan rendering failed: %s", e, exc_info=True)
                 with doc_tabs[1]:
                     st.markdown("**Value Stream Map (VSM) - Visualization**")
                     st.caption("A VSM visualizes the flow of material and information. This chart powerfully shows the proportion of time that is waste.")
@@ -330,7 +324,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.metric("Process Cycle Efficiency", "4.98%", "Highly inefficient", delta_color="inverse")
                     except Exception as e:
                         st.error("Failed to render VSM plot.")
-                        logger.error(f"VSM plot failed: {e}")
+                        logger.error("VSM plot failed: %s", e, exc_info=True)
         
         # ==================== ANALYZE PHASE ====================
         with phase_tabs[2]:
@@ -364,7 +358,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.info(f"**Conclusion:** No significant difference (p = {result.get('p_value', 0):.4f}).")
                 except Exception as e:
                     st.error("Failed to perform hypothesis test.")
-                    logger.error(f"Hypothesis test failed: {e}")
+                    logger.error("Hypothesis test failed: %s", e, exc_info=True)
 
             st.markdown("---")
             with st.expander("##### 📖 Explore Analyze Phase Tollgate Documents & Tools"):
@@ -386,7 +380,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.plotly_chart(fig, use_container_width=True)
                     except Exception as e:
                         st.error("Failed to render Pareto chart.")
-                        logger.error(f"Pareto chart failed: {e}")
+                        logger.error("Pareto chart failed: %s", e, exc_info=True)
                 with doc_tabs[1]:
                     st.markdown("**Failure Mode and Effects Analysis (FMEA) - Risk Matrix**")
                     st.caption("A risk assessment tool to systematically identify and prioritize potential failure modes.")
@@ -402,45 +396,38 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.plotly_chart(fig, use_container_width=True)
                     except Exception as e:
                         st.error("Failed to render FMEA risk matrix.")
-                        logger.error(f"FMEA risk matrix failed: {e}")
+                        logger.error("FMEA risk matrix failed: %s", e, exc_info=True)
                 with doc_tabs[2]:
                     st.markdown("**Regression Analysis**")
                     st.caption("Models the relationship between an input (X) and an output (Y).")
-                    if not isinstance(project_data, dict):
-                        st.error(f"Invalid project_data structure for project {selected_id}.")
-                        logger.error(f"Invalid project_data structure for {selected_id}: {type(project_data)}")
-                    else:
-                        regression_data = project_data.get("regression_data")
-                        if not isinstance(regression_data, dict):
-                            st.warning(f"Regression data missing for project {selected_id}. Using synthetic data.")
-                            logger.warning(f"Regression data missing for project {selected_id}: {regression_data}")
-                            regression_data = {'X': np.random.rand(50) * 10, 'y': None}
-                        X = regression_data.get('X')
-                        y = regression_data.get('y')
-                        # Validate regression data
-                        if (X is None or y is None or
-                            not isinstance(X, (list, np.ndarray, pd.Series)) or
-                            not isinstance(y, (list, np.ndarray, pd.Series))):
-                            st.warning("Regression data is missing or invalid. Using synthetic data for demonstration.")
-                            logger.warning(f"Invalid regression data for project {selected_id}: X={type(X)}, y={type(y)}")
+                    regression_data = project_data.get("regression_data", {})
+                    X = regression_data.get('X')
+                    y = regression_data.get('y')
+                    if (X is None or y is None or
+                        not isinstance(X, (list, np.ndarray, pd.Series)) or
+                        not isinstance(y, (list, np.ndarray, pd.Series)) or
+                        len(X) == 0 or len(y) == 0):
+                        st.warning("Regression data missing or invalid. Using synthetic data for demonstration.")
+                        logger.warning("Regression data missing or invalid for project %s: X=%s, y=%s", selected_id, type(X), type(y))
+                        X = np.random.rand(50) * 10
+                        y = 0.5 * X + np.random.randn(50) * 2 + 3
+                    try:
+                        X = np.array(X)
+                        y = np.array(y)
+                        if len(X) != len(y):
+                            st.error(f"Regression data mismatch: len(X)={len(X)}, len(y)={len(y)}. Using synthetic data.")
+                            logger.error("Regression data mismatch for project %s: len(X)=%s, len(y)=%s", selected_id, len(X), len(y))
                             X = np.random.rand(50) * 10
                             y = 0.5 * X + np.random.randn(50) * 2 + 3
-                        try:
-                            X = np.array(X)  # Ensure X is a numpy array
-                            y = np.array(y)  # Ensure y is a numpy array
-                            if len(X) != len(y):
-                                st.error(f"Regression data mismatch: len(X)={len(X)}, len(y)={len(y)}. Using synthetic data.")
-                                logger.error(f"Regression data mismatch for project {selected_id}: len(X)={len(X)}, len(y)={len(y)}")
-                                X = np.random.rand(50) * 10
-                                y = 0.5 * X + np.random.randn(50) * 2 + 3
-                            fig = px.scatter(x=X, y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols")
-                            st.plotly_chart(fig, use_container_width=True)
-                            model = sm.OLS(y, sm.add_constant(X)).fit()
-                            st.code(f"{model.summary()}")
-                            st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
-                        except Exception as e:
-                            st.error("Failed to perform regression analysis.")
-                            logger.error(f"Regression analysis failed: {e}")
+                        X = X.reshape(-1, 1)  # Ensure proper shape for OLS
+                        fig = px.scatter(x=X.flatten(), y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols")
+                        st.plotly_chart(fig, use_container_width=True)
+                        model = sm.OLS(y, sm.add_constant(X)).fit()
+                        st.code(f"{model.summary()}")
+                        st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
+                    except Exception as e:
+                        st.error("Failed to perform regression analysis.")
+                        logger.error("Regression analysis failed: %s", e, exc_info=True)
 
         # ==================== IMPROVE PHASE ====================
         with phase_tabs[3]:
@@ -451,7 +438,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             factors, response = ['temp', 'time', 'pressure'], 'strength'
             if doe_data.empty or not all(col in doe_data.columns for col in factors + [response]):
                 st.error("Invalid or missing DOE data.")
-                logger.error(f"DOE data missing columns: {set(factors + [response]) - set(doe_data.columns)}")
+                logger.error("DOE data missing columns: %s", set(factors + [response]) - set(doe_data.columns))
             else:
                 try:
                     doe_plots = create_doe_plots(doe_data, factors, response)
@@ -460,7 +447,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     st.success("**DOE Conclusion:** The analysis reveals that **Time** has the largest positive effect on bond strength.")
                 except Exception as e:
                     st.error("Failed to generate DOE plots.")
-                    logger.error(f"DOE plots failed: {e}")
+                    logger.error("DOE plots failed: %s", e, exc_info=True)
 
             st.markdown("---")
             with st.expander("##### 📖 Explore Improve Phase Tollgate Documents & Tools"):
@@ -477,11 +464,11 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     pugh_df = pd.DataFrame(pugh_data).set_index('Criteria')
                     pugh_df.loc['Total Score'] = pugh_df.sum()
                     try:
-                        st.dataframe(pugh_df.style.map(lambda x: 'background-color: #90ee90' if x > 0 else 'background-color: #ffcccb' if x < 0 else ''), use_container_width=True)
+                        st.dataframe(pugh_df.style.applymap(lambda x: 'background-color: #90ee90' if x > 0 else 'background-color: #ffcccb' if x < 0 else ''), use_container_width=True)
                         st.success("**Decision:** Solution A (New Fixture) is chosen.")
                     except Exception as e:
                         st.error("Failed to render Pugh Matrix.")
-                        logger.error(f"Pugh Matrix rendering failed: {e}")
+                        logger.error("Pugh Matrix rendering failed: %s", e, exc_info=True)
                 with doc_tabs[1]:
                     st.markdown("**Implementation Plan (Gantt Chart)**")
                     st.caption("A visual roadmap for deploying the solution.")
@@ -496,7 +483,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.plotly_chart(fig, use_container_width=True)
                     except Exception as e:
                         st.error("Failed to render Gantt chart.")
-                        logger.error(f"Gantt chart rendering failed: {e}")
+                        logger.error("Gantt chart rendering failed: %s", e, exc_info=True)
             
         # ==================== CONTROL PHASE ====================
         with phase_tabs[4]:
@@ -505,9 +492,15 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.markdown("#### 1. Live SPC Monitoring of New, Improved Process")
             improved_data = project_data.get("improved", {}).get("measurement")
             if not isinstance(improved_data, pd.Series) or improved_data.empty:
-                improved_mean = specs["target"]
-                improved_std = capability_metrics.get('sigma', 1.0) / 2
-                improved_process = pd.Series(np.random.normal(loc=improved_mean, scale=improved_std, size=200))
+                if 'capability_metrics' not in locals() or not capability_metrics:
+                    st.error("Cannot generate synthetic data: baseline capability metrics missing.")
+                    logger.error("Baseline capability metrics missing for synthetic data generation")
+                else:
+                    improved_mean = specs["target"]
+                    improved_std = capability_metrics.get('sigma', 1.0) / 2
+                    improved_process = pd.Series(np.random.normal(loc=improved_mean, scale=improved_std, size=200))
+                    st.warning("Improved process data missing. Using synthetic data for demonstration.")
+                    logger.warning("Improved process data missing for project %s", selected_id)
             else:
                 improved_process = improved_data
             try:
@@ -517,7 +510,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 st.plotly_chart(spc_fig, use_container_width=True)
             except Exception as e:
                 st.error("Failed to generate SPC chart for improved process.")
-                logger.error(f"SPC chart for improved process failed: {e}")
+                logger.error("SPC chart for improved process failed: %s", e, exc_info=True)
 
             st.markdown("---")
             with st.expander("##### 📖 Explore Control Phase Tollgate Documents & Tools"):
@@ -534,7 +527,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.dataframe(pd.DataFrame(control_plan_data), hide_index=True)
                     except Exception as e:
                         st.error("Failed to render Control Plan.")
-                        logger.error(f"Control Plan rendering failed: {e}")
+                        logger.error("Control Plan rendering failed: %s", e, exc_info=True)
                 with doc_tabs[1]:
                     st.markdown("**Response Plan (Out-of-Control Action Plan)**")
                     st.warning("**IF** a point on the I-MR chart violates a control limit, **THEN**:")
@@ -545,8 +538,12 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     st.success("**Best Practice:** The new asymmetric guide pin design is highly effective...", icon="💡")
     except Exception as e:
         st.error(f"An error occurred while rendering the DMAIC Toolkit: {e}")
-        logger.error(f"Failed to render DMAIC toolkit: {e}", exc_info=True)
+        logger.error("Failed to render DMAIC toolkit: %s", e, exc_info=True)
 
 if __name__ == "__main__":
-    ssm = SessionStateManager()  # Assumed to be defined elsewhere
-    render_dmaic_toolkit(ssm)
+    try:
+        ssm = SessionStateManager()
+        render_dmaic_toolkit(ssm)
+    except Exception as e:
+        st.error("Failed to initialize SessionStateManager.")
+        logger.error("SessionStateManager initialization failed: %s", e, exc_info=True)
