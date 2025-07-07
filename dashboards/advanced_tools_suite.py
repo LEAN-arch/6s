@@ -14,14 +14,14 @@ import streamlit as st
 from scipy import stats
 
 from six_sigma.data.session_state_manager import SessionStateManager
-from six_sigma.utils.plotting import create_gage_rr_plots, create_doe_plots
+from six_sigma.utils.plotting import create_doe_plots
 from six_sigma.utils.stats import calculate_gage_rr, perform_t_test, perform_anova
 
 logger = logging.getLogger(__name__)
 
 def render_advanced_tools_suite(ssm: SessionStateManager) -> None:
     """Creates the UI for the Advanced Tools Suite."""
-    st.header("🔮 Advanced Statistical Tools Suite")
+    st.header("🔮 Advanced Statistical Tools")
     st.markdown("A workbench for on-demand, sophisticated statistical analysis. Use these tools to conduct Measurement System Analysis, analyze experimental data, and perform hypothesis tests.")
 
     tool_tabs = st.tabs(["**Measurement System Analysis (Gage R&R)**", "**Design of Experiments (DOE)**", "**Hypothesis Testing**"])
@@ -35,8 +35,8 @@ def render_advanced_tools_suite(ssm: SessionStateManager) -> None:
             
             **Key Metrics:**
             - **% Contribution:** The percentage of total variation attributable to the Gage R&R. A value **<10% is considered acceptable**; >30% is unacceptable.
-            - **Repeatability:** Variation from the measurement instrument (gauge) itself.
-            - **Reproducibility:** Variation from the appraisers (operators) using the instrument.
+            - **Repeatability (EV):** Variation from the measurement instrument (gauge) itself.
+            - **Reproducibility (AV):** Variation from the appraisers (operators) using the instrument.
 
             **Interpretation:** You cannot trust your process data without a reliable measurement system. If the Gage R&R % is high, you must improve your measurement system *before* trying to improve your process.
             """)
@@ -47,7 +47,7 @@ def render_advanced_tools_suite(ssm: SessionStateManager) -> None:
                 st.warning("No Gage R&R data available.")
                 return
 
-            results_df, main_plot, components_plot = calculate_gage_rr(gage_data)
+            results_df, fig1, fig2 = calculate_gage_rr(gage_data)
             total_grr = results_df.loc['Total Gage R&R', '% Contribution']
             
             st.info("This analysis uses the ANOVA method to partition variance, as recommended by the AIAG.")
@@ -59,8 +59,8 @@ def render_advanced_tools_suite(ssm: SessionStateManager) -> None:
                 elif total_grr < 30: st.warning(f"**Conclusion:** Measurement System is **Marginal** ({total_grr:.2f}%).")
                 else: st.error(f"**Conclusion:** Measurement System is **Unacceptable** ({total_grr:.2f}%).")
             with grr_cols[1]:
-                st.plotly_chart(main_plot, use_container_width=True)
-                st.plotly_chart(components_plot, use_container_width=True)
+                st.plotly_chart(fig1, use_container_width=True)
+                st.plotly_chart(fig2, use_container_width=True)
 
         except Exception as e:
             st.error(f"An error occurred during Gage R&R analysis: {e}")
