@@ -16,7 +16,7 @@ SME Overhaul:
 import logging
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, List # <--- FIX: Added missing imports
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 from scipy import stats
