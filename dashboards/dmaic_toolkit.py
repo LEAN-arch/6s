@@ -1,18 +1,10 @@
 # six_sigma/dashboards/dmaic_toolkit.py
 """
 Renders the expert-level DMAIC Improvement Toolkit.
-
 This module provides an interactive, end-to-end workspace for executing
 complex Six Sigma projects. It guides an MBB through each phase of the DMAIC
 methodology, embedding advanced statistical tools, Root Cause Analysis (RCA)
 methodologies, and formal phase-gate approvals.
-
-SME Overhaul:
-- Transformed from a static report to an interactive project workspace.
-- Embedded a full suite of statistical tools: Hypothesis Testing, DOE, and SPC.
-- Integrated structured Root Cause Analysis tools (5 Whys, Fishbone).
-- Added interactive phase-gate "completion" checklists to track project maturity.
-- Included "Learn More" expanders to make tools accessible to all belt levels.
 """
 
 import logging
@@ -20,7 +12,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-from scipy import stats
+from scipy.stats import norm
 
 from six_sigma.data.session_state_manager import SessionStateManager
 from six_sigma.utils.plotting import create_control_chart, create_histogram_with_specs, create_doe_plots, create_gage_rr_plots
@@ -51,7 +43,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
         )
         
         project = next((p for p in projects if p['id'] == st.session_state.selected_project_id), None)
-
+        
         # --- 2. Define Tabs for each DMAIC phase ---
         phase_tabs = st.tabs(["**Define**", "**Measure**", "**Analyze (RCA)**", "**Improve (DOE)**", "**Control**"])
 
@@ -77,7 +69,13 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     "Outputs": ["Functional Charging Module"],
                     "Customers": ["Main Assembly Line", "Final Product"]
                 }
-                st.dataframe(pd.DataFrame.from_dict(sipoc_data, orient='index', columns=['Details']), use_container_width=True)
+                
+                # <--- FIX: Changed from a failing DataFrame to an iterative display --->
+                for category, items in sipoc_data.items():
+                    st.markdown(f"**{category}:**")
+                    for item in items:
+                        st.markdown(f"- {item}")
+                # <--- End of Fix --->
 
         # --- MEASURE PHASE ---
         with phase_tabs[1]:
@@ -107,7 +105,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 st.markdown("Gage R&R quantifies how much of your process variation is due to the measurement system itself. **A Total Gage R&R of <10% is excellent, while >30% is unacceptable.** You cannot trust your process data without a reliable measurement system.")
             
             gage_data = ssm.get_data("gage_rr_data")
-            results_df, main_plot, components_plot = calculate_gage_rr(gage_data)
+            results_df, fig1, fig2 = calculate_gage_rr(gage_data)
             total_grr = results_df.loc['Total Gage R&R', '% Contribution']
             
             grr_cols = st.columns([1, 2])
@@ -117,8 +115,8 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 elif total_grr < 30: st.warning(f"**Conclusion:** Measurement System is **Marginal** ({total_grr:.2f}%).")
                 else: st.error(f"**Conclusion:** Measurement System is **Unacceptable** ({total_grr:.2f}%).")
             with grr_cols[1]:
-                st.plotly_chart(main_plot, use_container_width=True)
-                st.plotly_chart(components_plot, use_container_width=True)
+                st.plotly_chart(fig1, use_container_width=True)
+                st.plotly_chart(fig2, use_container_width=True)
                 
         # --- ANALYZE PHASE (RCA) ---
         with phase_tabs[2]:
@@ -148,9 +146,9 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             ht_tool = st.selectbox("Select Hypothesis Test:", ["2-Sample t-Test (Before vs. After)", "ANOVA (Supplier A vs. B vs. C)"])
             
             if ht_tool == "2-Sample t-Test (Before vs. After)":
-                fig, result = perform_t_test(ht_data['before_change'], ht_data['after_change'], "Process Output Before", "Process Output After")
+                fig, result = perform_t_test(ht_data['before_change'], ht_data['after_change'], "Before Change", "After Change")
                 st.plotly_chart(fig, use_container_width=True)
-                if result['p_value'] < 0.05: st.success(f"**Conclusion:** The difference is statistically significant (p = {result['p_value']:.4f}). We reject the null hypothesis; the process mean has changed.")
+                if result['p_value'] < 0.05: st.success(f"**Conclusion:** The difference is statistically significant (p = {result['p_value']:.4f}).")
                 else: st.warning(f"**Conclusion:** The difference is not statistically significant (p = {result['p_value']:.4f}).")
 
             elif ht_tool == "ANOVA (Supplier A vs. B vs. C)":
@@ -163,7 +161,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
         # --- IMPROVE PHASE (DOE) ---
         with phase_tabs[3]:
             st.subheader("Improve Phase: Design of Experiments (DOE) & Optimization")
-            st.markdown("Develop, test, and implement solutions. Use DOE to find the optimal settings for critical process parameters (the 'vital few' X's).")
+            st.markdown("Use DOE to find the optimal settings for critical process parameters (the 'vital few' X's).")
             
             doe_data = ssm.get_data("doe_data")
             factors = ['temp', 'time', 'pressure']
@@ -171,7 +169,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
 
             st.info("The following analysis is based on a **3-Factor, 2-Level Full Factorial** experiment to optimize the 'Display Module Bonding Process'.")
             with st.expander("Learn More: Interpreting DOE Plots"):
-                st.markdown("- **Main Effects Plot:** Shows the average impact each factor has on the response. The steeper the line, the larger the effect.\n- **Interaction Plot:** Visualizes how the effect of one factor changes depending on the level of another. **Parallel lines indicate no interaction; crossed lines indicate a strong interaction.**\n- **Response Surface:** A 3D map showing the predicted response across a range of factor settings, helping to visualize the optimal process window.")
+                st.markdown("- **Main Effects Plot:** Shows the average impact each factor has on the response. The steeper the line, the larger the effect.\n- **Interaction Plot:** Visualizes how the effect of one factor changes depending on the level of another. **Non-parallel (crossed) lines indicate a strong interaction.**\n- **Response Surface:** A 3D map showing the predicted response across a range of factor settings, helping to visualize the optimal process window.")
 
             main_effects_fig, interaction_fig, surface_fig = create_doe_plots(doe_data, factors, response)
             
