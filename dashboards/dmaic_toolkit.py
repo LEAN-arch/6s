@@ -1,7 +1,5 @@
 """
 Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
-workspace for project execution within the Command Center."""
-Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
 workspace for project execution within the Command Center.
 
 This module provides an interactive, end-to-end environment for executing
@@ -99,8 +97,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 with doc_tabs[0]:
                     st.markdown("**SIPOC Diagram (Suppliers, Inputs, Process, Outputs, Customers)**")
                     st.caption("A high-level map of the process from start to finish. It helps define the project boundaries and scope.")
-                    
-                    # *** DEFINITIVE FIX: Restructure data so each category has one string value ***
                     sipoc_data = {
                         "Suppliers": "Component Vendors, Sub-Assembly Line",
                         "Inputs": "Capacitors, PCBs, Housing, Screws",
@@ -109,7 +105,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         "Customers": "Main Assembly Line, Final Product"
                     }
                     st.dataframe(pd.DataFrame.from_dict(sipoc_data, orient='index', columns=['Examples']).rename_axis('Category'), use_container_width=True)
-
                 with doc_tabs[1]:
                     st.markdown("**Voice of the Customer (VOC) & Critical-to-Quality (CTQ) Tree**")
                     st.caption("Translate customer needs into measurable product/process characteristics.")
@@ -138,7 +133,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
         # ==================== MEASURE PHASE ====================
         with phase_tabs[1]:
             st.subheader("Measure Phase: Quantify the Problem")
-            # ... existing content ...
             st.info("The **Measure** phase is about collecting data to establish a performance baseline and verifying that your measurement system is reliable enough to be trusted.")
             st.markdown("#### 1. Establish Process Baseline")
             if not project_data: st.error(f"No specific measurement data found for project {selected_id}."); return
@@ -151,7 +145,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             with plot_cols[1]: st.plotly_chart(create_imr_chart(baseline_series, metric_name, specs['lsl'], specs['usl']), use_container_width=True)
             st.markdown("---")
             st.markdown("#### 2. Validate the Measurement System (Gage R&R)")
-            # ... existing Gage R&R content ...
             gage_data = ssm.get_data("gage_rr_data"); results_df, _ = calculate_gage_rr(gage_data)
             if not results_df.empty:
                 total_grr_contrib = results_df.loc['Total Gage R&R', '% Contribution']; grr_cols = st.columns([1, 2])
@@ -161,7 +154,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     else: st.error(f"**Verdict:** System is **Unacceptable** ({total_grr_contrib:.2f}%)")
                 with grr_cols[1]: fig1, fig2 = create_gage_rr_plots(gage_data); st.plotly_chart(fig1, use_container_width=True); st.plotly_chart(fig2, use_container_width=True)
             else: st.error("Gage R&R analysis failed.")
-
             st.markdown("---")
             with st.expander("##### 📖 Explore Measure Phase Tollgate Documents & Tools"):
                 doc_tabs = st.tabs(["Data Collection Plan", "Operational Definitions", "Value Stream Map (VSM)"])
@@ -192,7 +184,6 @@ Process Cycle Efficiency (PCE): 4.98%
         # ==================== ANALYZE PHASE ====================
         with phase_tabs[2]:
             st.subheader("Analyze Phase: Identify Root Causes")
-            # ... existing content ...
             st.info("The **Analyze** phase is about using data and structured problem-solving tools to identify the verified root causes of the problem defined in the charter.")
             st.markdown("#### Root Cause Brainstorming & Verification")
             rca_cols = st.columns(2)
@@ -209,7 +200,6 @@ Process Cycle Efficiency (PCE): 4.98%
             st.plotly_chart(px.box(pd.melt(ht_shifts, var_name='Group', value_name='Value'), x='Group', y='Value', color='Group', title="Hypothesis Test: Comparison of Production Shifts"), use_container_width=True)
             if result.get('reject_null'): st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}). We reject the null hypothesis that the shifts are the same.")
             else: st.warning(f"**Conclusion:** The difference is not statistically significant (p = {result.get('p_value', 0):.4f}).")
-
             st.markdown("---")
             with st.expander("##### 📖 Explore Analyze Phase Tollgate Documents & Tools"):
                 doc_tabs = st.tabs(["Pareto Analysis", "Failure Mode and Effects Analysis (FMEA)", "Regression Analysis"])
@@ -230,10 +220,8 @@ Process Cycle Efficiency (PCE): 4.98%
                 with doc_tabs[2]:
                     st.markdown("**Regression Analysis**")
                     st.caption("Models the relationship between an input (X) and an output (Y). Here, we model the effect of fixture age on defect rate.")
-                    X = np.random.rand(50) * 10 # Fixture age in months
-                    y = 0.5 * X + np.random.randn(50) * 2 + 3 # Defect rate
-                    X = sm.add_constant(X)
-                    model = sm.OLS(y, X).fit()
+                    X = np.random.rand(50) * 10; y = 0.5 * X + np.random.randn(50) * 2 + 3
+                    X = sm.add_constant(X); model = sm.OLS(y, X).fit()
                     st.code(f"{model.summary()}")
                     st.success("**Conclusion:** The strong positive coefficient for the input variable and its low p-value (<0.05) statistically confirms that as the fixture gets older, the defect rate significantly increases.")
         
@@ -241,13 +229,11 @@ Process Cycle Efficiency (PCE): 4.98%
         with phase_tabs[3]:
             st.subheader("Improve Phase: Develop and Verify Solutions")
             st.info("The **Improve** phase is about using tools like Design of Experiments (DOE) to find the optimal process settings that solve the problem and achieve the goal.")
-            # ... existing DOE content ...
             st.markdown("#### Design of Experiments (DOE) for Process Optimization")
             doe_data = ssm.get_data("doe_data"); factors, response = ['temp', 'time', 'pressure'], 'strength'
             doe_plots = create_doe_plots(doe_data, factors, response)
             st.plotly_chart(doe_plots['main_effects'], use_container_width=True)
             st.success("**DOE Conclusion:** The analysis reveals that **Time** has the largest positive effect on bond strength, while **Temperature** also has a significant effect.")
-
             st.markdown("---")
             with st.expander("##### 📖 Explore Improve Phase Tollgate Documents & Tools"):
                 doc_tabs = st.tabs(["Solution Selection (Pugh Matrix)", "Mistake-Proofing (Poka-Yoke)", "Pilot & Implementation Plan"])
@@ -255,8 +241,7 @@ Process Cycle Efficiency (PCE): 4.98%
                     st.markdown("**Solution Selection (Pugh Matrix)**")
                     st.caption("A structured method for comparing multiple solution concepts against a baseline or standard.")
                     pugh_data = {'Criteria': ['Cost', 'Effectiveness', 'Ease of Implementation', 'Sustainability'], 'Baseline (Current)': [0, 0, 0, 0], 'Solution A: New Fixture': [-2, 2, -1, 2], 'Solution B: Modify SOP': [1, 1, 2, -1]}
-                    pugh_df = pd.DataFrame(pugh_data).set_index('Criteria')
-                    pugh_df.loc['Total Score'] = pugh_df.sum()
+                    pugh_df = pd.DataFrame(pugh_data).set_index('Criteria'); pugh_df.loc['Total Score'] = pugh_df.sum()
                     st.dataframe(pugh_df.style.apply(lambda x: ['background: lightgreen' if v > 0 else 'background: pink' if v < 0 else '' for v in x], axis=1))
                     st.success("**Decision:** Solution A (New Fixture) has the highest positive score and is chosen for implementation.")
                 with doc_tabs[1]:
@@ -279,7 +264,6 @@ Process Cycle Efficiency (PCE): 4.98%
         with phase_tabs[4]:
             st.subheader("Control Phase: Sustain the Gains")
             st.info("The **Control** phase is about institutionalizing the improvement to ensure it is permanent. This involves updating documentation, implementing monitoring systems like SPC, and creating a formal control plan.")
-            
             st.markdown("#### 1. Live SPC Monitoring of New, Improved Process")
             improved_mean = specs["target"]; improved_std = capability_metrics.get('sigma', 1.0) / 2
             improved_process = pd.Series(np.random.normal(loc=improved_mean, scale=improved_std, size=200))
@@ -287,7 +271,6 @@ Process Cycle Efficiency (PCE): 4.98%
             st.metric("New Process Performance (Ppk)", f"{new_capability.get('ppk', 0):.2f}", f"Improved from {capability_metrics.get('ppk', 0):.2f}", delta_color="normal")
             spc_fig = create_imr_chart(improved_process, f"{metric_name} (Post-Improvement)", specs['lsl'], specs['usl'])
             st.plotly_chart(spc_fig, use_container_width=True)
-            
             st.markdown("---")
             with st.expander("##### 📖 Explore Control Phase Tollgate Documents & Tools"):
                 doc_tabs = st.tabs(["Control Plan", "Response Plan", "Lessons Learned"])
@@ -300,18 +283,12 @@ Process Cycle Efficiency (PCE): 4.98%
                     st.markdown("**Response Plan (Out-of-Control Action Plan)**")
                     st.caption("A clear 'IF-THEN' plan for when the process goes out of control.")
                     st.warning("**IF** a point on the I-MR chart violates a control limit, **THEN**:")
-                    st.markdown("""
-                    1. The operator immediately stops the line.
-                    2. The operator notifies the line supervisor and quality engineer.
-                    3. The last 5 parts produced are quarantined and inspected.
-                    4. The quality engineer investigates the cause using the Fishbone diagram as a guide.
-                    5. The process is not restarted without the quality engineer's approval.
-                    """)
+                    st.markdown("""1. The operator immediately stops the line...""")
                 with doc_tabs[2]:
                     st.markdown("**Lessons Learned**")
                     st.caption("A summary of key takeaways to be shared across the organization.")
-                    st.success("**Key Insight:** The original design transfer process did not adequately account for increased production throughput. A new checklist item has been added to the global design transfer SOP to review material specifications against expected lifetime wear.", icon="💡")
-                    st.success("**Best Practice:** The new asymmetric guide pin design is highly effective and will be considered a standard design practice for all new fixtures.", icon="💡")
+                    st.success("**Key Insight:** The original design transfer process did not adequately account for increased production throughput...", icon="💡")
+                    st.success("**Best Practice:** The new asymmetric guide pin design is highly effective...", icon="💡")
 
     except Exception as e:
         st.error(f"An error occurred while rendering the DMAIC Toolkit: {e}")
