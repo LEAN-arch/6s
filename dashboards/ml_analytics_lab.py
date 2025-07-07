@@ -65,24 +65,20 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     st.header("🔬 Classical Statistics vs. Modern Machine Learning")
     st.markdown("A comparative lab to understand the strengths and weaknesses of traditional statistical methods versus modern ML approaches for common Six Sigma tasks. This workspace is designed to build intuition and expand your analytical toolkit.")
 
-    # --- Centralized Pre-computation Block ---
+    # --- Centralized Model Training ---
+    # We train the models once here to be used by multiple tabs.
     models_trained = False
     df_pred = ssm.get_data("predictive_quality_data")
     if not df_pred.empty:
-        try:
-            with st.spinner("Training comparison models and calculating SHAP values..."):
-                features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
-                target = 'final_qc_outcome'
-                X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-                model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-                model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
-                explainer = shap.TreeExplainer(model_rf)
-                shap_values = explainer.shap_values(X_test)
-                models_trained = True
-        except Exception as e:
-            st.error(f"An error occurred during model pre-computation: {e}")
-            logger.error(f"ML Lab pre-computation failed: {e}", exc_info=True)
+        features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
+        target = 'final_qc_outcome'
+        X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+        
+        with st.spinner("Training predictive models..."):
+            model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
+            model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
+        models_trained = True
 
     # --- Main UI Tabs ---
     tab_list = ["**1. Predictive Quality**", "**2. Test Effectiveness**", "**3. Driver Analysis**", "**4. Process Control**", "**5. Process Optimization**", "**6. Failure Mode Analysis**"]
@@ -127,7 +123,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("##### Performance Comparison (ROC Curve)")
-            # ... (ROC Plot code) ...
             pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]; pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
             auc_rf = roc_auc_score(y_test, pred_proba_rf); auc_lr = roc_auc_score(y_test, pred_proba_lr)
             fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf); fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
@@ -195,6 +190,11 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
             """)
         if models_trained:
+            # *** FIX: Perform SHAP calculation within this tab's scope for robustness ***
+            with st.spinner("Calculating SHAP values for driver analysis..."):
+                explainer = shap.TreeExplainer(model_rf)
+                shap_values = explainer.shap_values(X_test)
+
             st.markdown("##### Global Feature Importance")
             col1, col2 = st.columns(2)
             with col1:
