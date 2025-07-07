@@ -21,6 +21,8 @@ statsmodels==0.14.2
 
 # Machine learning library for classification, metrics, and data splitting
 scikit-learn==1.4.2
+shap==0.45.0
+
 
 # Required by pandas for advanced styling features like background_gradient
 matplotlib==3.8.4
