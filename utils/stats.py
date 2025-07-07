@@ -1,22 +1,15 @@
 # six_sigma/utils/stats.py
 """
 Utility functions for performing standardized, expert-level statistical calculations.
-
 This module houses reusable functions for quality engineering statistics, such as
 process capability analysis, Gage R&R, and hypothesis testing. Centralizing these
 calculations ensures consistency, testability, and clarity.
-
-SME Overhaul:
-- Added `calculate_gage_rr` to perform full ANOVA-based Gage R&R.
-- Added `perform_t_test` and `perform_anova` for hypothesis testing.
-- Hardened `calculate_process_capability` with more robust checks.
-- Functions now return both results and plots for better integration.
 """
 
 import logging
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any, List # <--- FIX: Added missing imports
+from typing import Tuple, Dict, Any, List
 from statsmodels.formula.api import ols
 from statsmodels.stats.anova import anova_lm
 from scipy import stats
@@ -36,7 +29,6 @@ def calculate_process_capability(data: pd.Series, lsl: float, usl: float) -> Tup
         
         pp = (usl - lsl) / (6 * std_dev)
         ppk = min((usl - mean) / (3 * std_dev), (mean - lsl) / (3 * std_dev))
-        # For this tool, Cp/Cpk use the same overall stdev as Pp/Ppk
         return pp, ppk, pp, ppk
     except Exception as e:
         logger.error(f"Error in process capability calculation: {e}", exc_info=True)
@@ -51,14 +43,23 @@ def calculate_gage_rr(df: pd.DataFrame) -> Tuple[pd.DataFrame, go.Figure, go.Fig
         model = ols(formula, data=df).fit()
         anova_table = anova_lm(model, typ=2)
         
+        # <--- FIX: Robustly determine the name of the Mean Squares column --->
+        if 'MS' in anova_table.columns:
+            ms_col = 'MS'
+        elif 'mean_sq' in anova_table.columns:
+            ms_col = 'mean_sq'
+        else:
+            raise KeyError("Could not find Mean Squares column ('MS' or 'mean_sq') in ANOVA table.")
+        # <--- End of Fix --->
+
         n_parts = df['part_id'].nunique()
         n_ops = df['operator'].nunique()
         n_reps = df.groupby(['part_id', 'operator']).size().iloc[0]
         
-        ms_op = anova_table.loc['C(operator)', 'mean_sq']
-        ms_part = anova_table.loc['C(part_id)', 'mean_sq']
-        ms_interact = anova_table.loc['C(operator):C(part_id)', 'mean_sq']
-        ms_error = anova_table.loc['Residual', 'mean_sq']
+        ms_op = anova_table.loc['C(operator)', ms_col]
+        ms_part = anova_table.loc['C(part_id)', ms_col]
+        ms_interact = anova_table.loc['C(operator):C(part_id)', ms_col]
+        ms_error = anova_table.loc['Residual', ms_col]
         
         var_repeat = ms_error
         var_repro_op = max(0, (ms_op - ms_interact) / (n_parts * n_reps))
@@ -79,7 +80,8 @@ def calculate_gage_rr(df: pd.DataFrame) -> Tuple[pd.DataFrame, go.Figure, go.Fig
         return results_df, fig1, fig2
     except Exception as e:
         logger.error(f"Gage R&R calculation failed: {e}", exc_info=True)
-        return pd.DataFrame(), go.Figure(), go.Figure()
+        # Return empty objects on failure to prevent downstream errors
+        return pd.DataFrame(), go.Figure().update_layout(title_text="Gage R&R Error"), go.Figure().update_layout(title_text="Gage R&R Error")
 
 def perform_t_test(sample1: pd.Series, sample2: pd.Series, name1: str, name2: str) -> Tuple[go.Figure, Dict[str, float]]:
     """Performs an independent 2-sample t-test and returns a plot and results."""
