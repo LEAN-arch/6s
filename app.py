@@ -1,17 +1,17 @@
-# philips_quality_optimizer/app.py
+# 6s/app.py
 """
-Main application entry point for the Philips Quality Optimization Command Center.
+Main application entry point for the 6σ Quality Command Center.
 
-This Streamlit application is the primary digital toolkit for a Quality Optimization
-Engineer Lead. It is designed to drive continuous improvement, cost savings, and
-process efficiency across global medical device manufacturing sites.
+This Streamlit application is the primary digital toolkit for a Quality and
+Process Improvement Engineer. It is designed to drive continuous improvement,
+cost savings, and process efficiency across global manufacturing sites.
 
 The Command Center provides tools for monitoring Key Performance Indicators (KPIs),
 executing DMAIC-based improvement projects, optimizing product release strategies,
 and leveraging predictive analytics to foster a culture of "Quality at the Source."
 It supports the key objectives of reducing scrap, improving First Time Right (FTR),
 lowering Cost of Poor Quality (COPQ), and shortening cycle times, all within the
-rigorous compliance framework of the medical device industry (ISO 13485, 21 CFR 820).
+rigorous compliance framework of regulated industries.
 """
 
 # --- Standard Library Imports ---
@@ -37,14 +37,14 @@ except Exception as e:
     st.warning(f"Could not precisely determine project root. Assuming '{project_root}'. Module imports may fail. Error: {e}")
 
 # --- Local Application Imports ---
-# These imports reflect the new, redesigned architecture.
+# These imports reflect the new, redesigned architecture under the '6s' root.
 try:
-    from philips_quality_optimizer.data.session_state_manager import SessionStateManager
-    from philips_quality_optimizer.dashboards.global_operations_dashboard import render_global_dashboard
-    from philips_quality_optimizer.dashboards.dmaic_toolkit import render_dmaic_toolkit
-    from philips_quality_optimizer.dashboards.release_optimization_suite import render_release_optimization_suite
-    from philips_quality_optimizer.dashboards.kaizen_training_hub import render_kaizen_training_hub
-    from philips_quality_optimizer.dashboards.predictive_quality_lab import render_predictive_quality_lab
+    from 6s.data.session_state_manager import SessionStateManager
+    from 6s.dashboards.global_operations_dashboard import render_global_dashboard
+    from 6s.dashboards.dmaic_toolkit import render_dmaic_toolkit
+    from 6s.dashboards.release_optimization_suite import render_release_optimization_suite
+    from 6s.dashboards.kaizen_training_hub import render_kaizen_training_hub
+    from 6s.dashboards.predictive_quality_lab import render_predictive_quality_lab
 except ImportError as e:
     st.error(f"Fatal Error: A required local module could not be imported: {e}. "
              "Please ensure the application's directory structure is correct and all "
@@ -56,8 +56,8 @@ except ImportError as e:
 # Must be the first Streamlit command.
 st.set_page_config(
     layout="wide",
-    page_title="Philips Quality Optimization Command Center",
-    page_icon="🅿️" # Using a generic 'P' for Philips
+    page_title="6σ Quality Command Center",
+    page_icon="📈" # A generic chart icon
 )
 
 # --- Logging Setup ---
@@ -76,7 +76,7 @@ def main() -> None:
     """
     Main function to initialize the Session State and render the Streamlit app.
     """
-    st.title("🅿️ Quality Optimization Command Center")
+    st.title("📈 6σ Quality Command Center")
     st.caption("Driving Continuous Improvement and Cost Savings Across Global Operations")
 
     # Initialize the session state. This class now generates a data model
