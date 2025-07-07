@@ -1,4 +1,4 @@
-# 6s/dashboards/kaizen_training_hub.py
+# six_sigma/dashboards/kaizen_training_hub.py
 """
 Renders the Kaizen & Training Hub.
 
@@ -12,7 +12,7 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from 6s.data.session_state_manager import SessionStateManager
+from six_sigma.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
