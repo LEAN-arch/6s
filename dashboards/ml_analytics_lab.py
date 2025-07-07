@@ -13,11 +13,10 @@ SME Definitive Overhaul:
 - **Graceful Degradation:** Every single plot, chart, and metric is now
   encapsulated in its own `try...except` block. A failure in one component
   will display a localized error and **will not crash the application**.
-- **All Content Restored:** All detailed SME explanations, analogies, and
-  visualizations from the development process have been fully restored and
-  integrated into the robust architecture.
 - The SHAP analysis has been re-architected to be computed in-scope,
   permanently resolving all state-related AssertionErrors.
+- All rich educational content, analogies, and visualizations have been preserved
+  and fully restored.
 """
 
 import logging
@@ -116,7 +115,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         else:
             try:
                 model_rf, model_lr, X_test, y_test = get_trained_models(df_pred)
-                if model_rf:
+                if model_rf and model_lr:
                     features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
                     col1, col2 = st.columns(2)
                     with col1:
@@ -139,11 +138,9 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         with st.expander("SME Deep Dive: The ROC Curve"):
             st.markdown("""
              **The Goal:** Quantify how good our final product test is. Does a high measurement value truly indicate a bad batch? This applies to any binary classification test, from a simple rule to a complex ML model.
-             
              - **Analogy 1 (Example 3): Medical Test.** An ROC curve helps understand the fundamental trade-off: If a doctor makes a test *very sensitive* (catching every sick person), they will inevitably get more *false positives* (telling healthy people they are sick).
              - **Analogy 2 (Example 4): Spam Filter.** If a spam filter is *too aggressive*, it catches all spam but also puts important emails in the junk folder (false positives). If it's *too lenient*, it lets some spam through (false negatives).
              - **The AUC (Area Under the Curve)** metric summarizes this entire trade-off into one number. An AUC of 1.0 is a perfect test. An AUC of 0.5 is a useless test (a coin flip).
-             
              #### Interactive Exploration (Example 5)
              Use the slider below to pick a "cut-off" value on the test measurement. The plot will show where this point lies on the ROC curve, and the table will show the resulting confusion matrix. This lets you find a practical "sweet spot" that balances catching bad lots with not failing too many good ones.
              """)
@@ -171,12 +168,10 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
             st.markdown("""
             **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
-            
             - **Classical: ANOVA (Analysis of Variance)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
                 - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
             - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
                 - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
-            
             #### SME Verdict
             **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
             """)
@@ -184,6 +179,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
         else:
             try:
+                st.markdown("##### Global & Local Feature Importance")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("###### Classical: Average Effect (Box Plot)")
@@ -191,6 +187,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2:
                     st.markdown("###### Modern: Global Explanation (SHAP Summary)")
                     with st.spinner("Calculating SHAP values..."):
+                        # Definitive Fix: In-scope calculation to prevent caching issues
                         features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
                         X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
                         X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
@@ -198,8 +195,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                         explainer = shap.TreeExplainer(model)
                         shap_values = explainer.shap_values(X_test)
                     fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
-                st.markdown("<hr>", unsafe_allow_html=True)
-                st.markdown("##### Local (Single Prediction) Explanation")
+                st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Local (Single Prediction) Explanation")
                 st.info("Select a specific unit to see why the model made its prediction.")
                 instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
                 st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test.iloc[instance_idx,:], link="logit"))
