@@ -5,13 +5,10 @@ Master Black Belt (MBB).
 
 SME Overhaul:
 This module has been significantly re-architected to generate a coherent and
-interconnected dataset. Instead of random, disconnected data points, it now
-creates a compelling narrative. For example, a specific process bottleneck at a
-manufacturing site is programmatically linked to increased internal failure costs
-(COPQ) and serves as the data-driven justification for a specific DMAIC project
-in the pipeline. This creates a realistic, commercial-grade experience for the user.
-It has been further extended to generate dedicated datasets for each DMAIC project,
-enabling a fully dynamic and context-aware toolkit experience.
+interconnected dataset. It creates a compelling narrative where process issues
+directly link to financial impact and justify specific DMAIC projects.
+It has been further extended to generate dedicated datasets for each DMAIC
+project and for advanced ML vs. Classical comparisons.
 """
 
 import logging
@@ -25,10 +22,8 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 # --- Data Generation Helper Functions ---
-# ... (All helper functions, including the new _generate_optimization_data
-#      and _generate_failure_clustering_data from the previous version, are correct and remain here) ...
 def _generate_yield_data() -> (List[Dict[str, Any]], List[Dict[str, Any]], List[str]):
-    # ... code from previous version ...
+    """Generates interconnected multi-step process yield and RTY data."""
     yield_data, rty_by_date = [], []
     base_date = date.today() - timedelta(days=365)
     sites = ["Andover, US", "Eindhoven, NL", "Shanghai, CN"]
@@ -49,7 +44,7 @@ def _generate_yield_data() -> (List[Dict[str, Any]], List[Dict[str, Any]], List[
     return yield_data, rty_by_date, process_steps
 
 def _generate_copq_data(sites: List[str], products_by_site: Dict[str, List[str]]) -> List[Dict[str, Any]]:
-    # ... code from previous version ...
+    """Generates granular COPQ data linked to process performance."""
     copq_data = []
     base_date = date.today() - timedelta(days=365)
     internal_failures = {"Scrap": 500, "Rework": 150, "Re-test": 75}
@@ -65,20 +60,20 @@ def _generate_copq_data(sites: List[str], products_by_site: Dict[str, List[str]]
     return copq_data
 
 def _generate_dmaic_projects(base_date: date) -> List[Dict[str, Any]]:
-    # ... code from previous version ...
+    """Generates pre-defined DMAIC project charters that align with the data narrative."""
     return [
         {"id": "DMAIC-001", "site": "Andover, US", "product_line": "HeartStart Defibrillator", "title": "Reduce Sub-Assembly Step Defects", "phase": "Analyze", "problem_statement": "The 'Sub-Assembly' step has a First Time Yield (FTY) of ~92%, well below the target of 98%. This is causing significant downstream rework and scrap, identified as the primary driver of internal failure costs for the Defibrillator line.", "goal_statement": "Increase the FTY of the 'Sub-Assembly' step from 92% to >98% by Q4. This will improve overall Rolled Throughput Yield (RTY) by 6 percentage points and reduce associated rework/scrap COPQ by over $200k annually.", "team": ["John Smith (MBB Lead)", "Jane Doe (Engineer)", "Mike Ross (Ops)"], "start_date": str(base_date + timedelta(days=180)), },
         {"id": "DMAIC-002", "site": "Eindhoven, NL", "product_line": "IntelliVue Patient Monitor", "title": "Optimize Display Module Bonding Process", "phase": "Improve", "problem_statement": "The display module bonding process within Main Assembly has high variability in bond strength, leading to a Ppk of 0.7. Failures are caught in final QC, resulting in $150k/yr in internal scrap costs.", "goal_statement": "Identify significant factors in the bonding process via DOE and implement controls to increase Ppk to >1.33, reducing scrap costs by 80%.", "team": ["Sofia Chen (BB Lead)", "David Lee (Engineer)"], "start_date": str(base_date + timedelta(days=200)), }
     ]
 
 def _generate_dmaic_data() -> Dict[str, Any]:
-    # ... code from previous version ...
-    project_data_001 = {"baseline": pd.DataFrame({'measurement': np.random.normal(10.2, 0.5, 200)}), "shifts": pd.DataFrame({'shift_1': np.random.normal(10.25, 0.55, 50), 'shift_2': np.random.normal(10.15, 0.45, 50)}), "specs": {"lsl": 9.0, "usl": 11.0, "target": 10.0}}
-    project_data_002 = {"baseline": pd.DataFrame({'measurement': np.random.normal(85, 2.8, 200)}), "shifts": pd.DataFrame({'before': np.random.normal(85, 2.8, 50), 'after': np.random.normal(88, 1.2, 50)}), "specs": {"lsl": 78, "usl": 92, "target": 85}}
+    """Generates specific datasets for each DMAIC project."""
+    project_data_001 = {"baseline": pd.DataFrame({'measurement': np.random.normal(10.2, 0.5, 200)}), "shifts": pd.DataFrame({'shift_1': np.random.normal(10.25, 0.55, 50), 'shift_2': np.random.normal(10.15, 0.45, 50)}), "specs": {"lsl": 9.0, "usl": 11.0, "target": 10.0}, "metric_name": "Sub-Assembly Dimension (mm)"}
+    project_data_002 = {"baseline": pd.DataFrame({'measurement': np.random.normal(85, 2.8, 200)}), "shifts": pd.DataFrame({'before': np.random.normal(85, 2.8, 50), 'after': np.random.normal(88, 1.2, 50)}), "specs": {"lsl": 78, "usl": 92, "target": 85}, "metric_name": "Bond Strength (MPa)"}
     return {"DMAIC-001": project_data_001, "DMAIC-002": project_data_002}
 
 def _generate_statistical_tool_data() -> Dict[str, Any]:
-    # ... code from previous version ...
+    """Generates structured datasets for various standalone statistical tools."""
     gage_data = [];
     for part in range(1, 11):
         true_value = 10 + part * 0.1
@@ -89,23 +84,24 @@ def _generate_statistical_tool_data() -> Dict[str, Any]:
     return {"gage_rr_data": pd.DataFrame(gage_data), "doe_data": doe_df}
 
 def _generate_ml_lab_data() -> Dict[str, Any]:
-    # ... code from previous version ...
+    """Generates datasets for the ML & Analytics Lab."""
     ml_data = []
     for _ in range(500):
         temp = np.random.normal(200, 10); pressure = np.random.normal(50, 5); vibration = np.random.normal(1.5, 0.5)
         fail_prob = 1 / (1 + np.exp(-(0.1 * (temp - 215) + 0.5 * (pressure - 52) - 0.05 * vibration)))
         ml_data.append({"in_process_temp": temp, "in_process_pressure": pressure, "in_process_vibration": vibration, "final_qc_outcome": "Fail" if random.random() < fail_prob else "Pass"})
     release_batches = [{"batch_id": f"BATCH-{202400 + i}", "test_measurement": np.random.normal(10.8, 0.8) if random.random() < 0.10 else np.random.normal(10.0, 0.2), "true_status": "Fail" if random.random() < 0.10 else "Pass"} for i in range(200)]
-    return {"predictive_quality_data": pd.DataFrame(ml_data), "release_data": pd.DataFrame(release_batches)}
+    process_data_df = pd.DataFrame({'timestamp': pd.to_datetime(pd.date_range(start='2023-01-01', periods=200, freq='D')), 'seal_strength': np.concatenate([np.random.normal(88, 2.0, 100), np.random.normal(82, 2.8, 100)])})
+    return {"predictive_quality_data": pd.DataFrame(ml_data), "release_data": pd.DataFrame(release_batches), "process_data": process_data_df}
 
 def _generate_optimization_data() -> pd.DataFrame:
-    # ... code from previous version ...
+    """Generates a complex 2D surface for optimization comparison."""
     x = np.linspace(-5, 5, 50); y = np.linspace(-5, 5, 50); xx, yy = np.meshgrid(x, y)
     z = (np.sin(np.sqrt(xx**2 + yy**2)) - (xx**2 + yy**2) * 0.05 + np.cos(xx) * 2 - np.sin(yy) * 1.5)
     return pd.DataFrame({'x': xx.flatten(), 'y': yy.flatten(), 'z': z.flatten()})
 
 def _generate_failure_clustering_data() -> pd.DataFrame:
-    # ... code from previous version ...
+    """Generates failure data with three distinct underlying clusters."""
     c1 = pd.DataFrame({'temperature': np.random.normal(250, 5, 50), 'pressure': np.random.normal(40, 3, 50), 'failure_mode': 'Seal Delamination'})
     c2 = pd.DataFrame({'temperature': np.random.normal(180, 5, 50), 'pressure': np.random.normal(80, 3, 50), 'failure_mode': 'Material Warping'})
     c3 = pd.DataFrame({'temperature': np.random.normal(215, 8, 50), 'pressure': np.random.normal(60, 5, 50), 'failure_mode': 'Component Fracture'})
@@ -118,19 +114,18 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
     sites = ["Andover, US", "Eindhoven, NL", "Shanghai, CN"]
     products_by_site = {"Andover, US": ["HeartStart Defibrillator"], "Eindhoven, NL": ["IntelliVue Patient Monitor", "Zenition C-arm"], "Shanghai, CN": ["Affiniti Ultrasound"]}
 
+    # Generate all datasets
     yield_data, rty_by_date, _ = _generate_yield_data()
     copq_data = _generate_copq_data(sites, products_by_site)
     dmaic_projects = _generate_dmaic_projects(base_date)
     dmaic_project_datasets = _generate_dmaic_data()
     stat_tool_data = _generate_statistical_tool_data()
     ml_lab_data = _generate_ml_lab_data()
-    
-    # *** DEFINITIVE FIX: Ensure all generated datasets are added to the final model ***
     optimization_data = _generate_optimization_data()
     clustering_data = _generate_failure_clustering_data()
 
-    kaizen_events = [{"id": "KZN-01", "site": "Eindhoven, NL", "date": base_date + timedelta(days=250), "title": "5S Implementation on Monitor Assembly Line 3", "outcome": "Reduced tool search time by 60%; cleared 25 sq. meters of floor space.", "team": ["Maria Rodriguez", "David Lee"]}, {"id": "KZN-02", "site": "Andover, US", "date": base_date + timedelta(days=300), "title": "Value Stream Mapping of Defibrillator Sub-assembly", "outcome": "Identified 3 non-value-add steps, reducing process cycle time by 15%.", "team": ["John Smith", "Jane Doe"]}]
-    training_materials = [{"id": "TRN-001", "title": "Introduction to DMAIC Methodology", "type": "eLearning", "duration_hr": 4, "link": "#", "target_audience": "All"}, {"id": "TRN-002", "title": "Statistical Process Control (SPC) Fundamentals", "type": "PDF Guide", "duration_hr": 2, "link": "#", "target_audience": "Engineers, Technicians"}, {"id": "TRN-003", "title": "Design of Experiments (DOE) Workshop", "type": "Workshop Slides", "duration_hr": 8, "link": "#", "target_audience": "Engineers"}, {"id": "TRN-004", "title": "Root Cause Analysis (Fishbone & 5 Whys)", "type": "eLearning", "duration_hr": 2, "link": "#", "target_audience": "All"}]
+    kaizen_events = [{"id": "KZN-01", "site": "Eindhoven, NL", "date": base_date + timedelta(days=250), "title": "5S Implementation", "outcome": "Reduced tool search time by 60%.", "team": ["Maria Rodriguez", "David Lee"]}]
+    training_materials = [{"id": "TRN-001", "title": "Introduction to DMAIC", "type": "eLearning", "duration_hr": 4, "link": "#", "target_audience": "All"}]
 
     model_data = {
         "data_version": version,
@@ -141,7 +136,7 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
         "global_kpis": rty_by_date,
         "kaizen_events": kaizen_events,
         "training_materials": training_materials,
-        # *** DEFINITIVE FIX: Add the missing datasets here ***
+        # *** DEFINITIVE FIX: Ensure all generated datasets are added to the final model ***
         "optimization_data": optimization_data,
         "failure_clustering_data": clustering_data,
     }
@@ -151,14 +146,14 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
     return model_data
 
 class SessionStateManager:
-    # ... (class remains the same) ...
-    _DATA_KEY = "six_sigma_mbb_data_v4_final"
-    _CURRENT_DATA_VERSION = 12.0
+    _DATA_KEY = "six_sigma_mbb_data_v_final_robust"
+    _CURRENT_DATA_VERSION = 15.0 # Definitive Robustness Refactor
     def __init__(self):
         if self._DATA_KEY not in st.session_state or st.session_state[self._DATA_KEY].get("data_version") != self._CURRENT_DATA_VERSION:
             logger.info(f"Initializing session state with MBB data model v{self._CURRENT_DATA_VERSION}.")
             try:
-                with st.spinner("Generating sophisticated, interconnected datasets... Please wait."): st.session_state[self._DATA_KEY] = _create_mbb_model(self._CURRENT_DATA_VERSION)
+                with st.spinner("Generating sophisticated, interconnected datasets..."):
+                    st.session_state[self._DATA_KEY] = _create_mbb_model(self._CURRENT_DATA_VERSION)
                 logger.info("Session state initialized successfully with narrative-driven data.")
             except Exception as e:
                 logger.critical(f"FATAL: Data generation failed: {e}", exc_info=True)
