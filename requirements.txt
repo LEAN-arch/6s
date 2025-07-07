@@ -14,6 +14,7 @@ plotly==5.21.0
 
 # Advanced statistical computation and hypothesis testing
 scipy==1.13.0
+statsmodels==0.14.2
 
 # Required for advanced statistical modeling (ANOVA, OLS for DOE/Gage R&R)
 statsmodels==0.14.2
