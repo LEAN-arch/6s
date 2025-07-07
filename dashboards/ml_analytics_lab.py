@@ -278,9 +278,14 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     X_train_local, X_test_local, y_train_local, _ = train_test_split(
                         X_local, y_local, test_size=0.3, random_state=42, stratify=y_local
                     )
+                    if len(X_test_local) == 0:
+                        raise ValueError("Test set is empty after train-test split.")
                     model_rf_local = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train_local, y_train_local)
-                    explainer = shap.TreeExplainer(model_rf_local)
-                    shap_values = explainer.shap_values(X_test_local[:100])  # Limit to 100 instances for performance
+                    explainer = shap.TreeExplainer(model_rf_local, feature_names=features)
+                    # Use min to avoid slicing issues if X_test_local has fewer than 100 samples
+                    n_samples = min(len(X_test_local), 100)
+                    shap_values = explainer.shap_values(X_test_local[:n_samples])
+                    logger.info(f"SHAP values shape: {np.array(shap_values).shape}, X_test_local shape: {X_test_local[:n_samples].shape}")
                 except Exception as e:
                     st.error("Failed to compute SHAP values.")
                     logger.error(f"SHAP computation failed: {e}")
@@ -301,7 +306,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     st.markdown("###### Modern: Global Explanation (SHAP Summary)")
                     try:
                         fig, ax = plt.subplots()
-                        shap.summary_plot(shap_values[1], X_test_local[:100], plot_type="dot", show=False)
+                        shap.summary_plot(shap_values[1], X_test_local[:n_samples], feature_names=features, plot_type="dot", show=False)
                         st.pyplot(fig, bbox_inches='tight')
                         plt.close(fig)
                     except Exception as e:
@@ -317,7 +322,13 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 else:
                     instance_idx = st.slider("Select a Test Instance to Explain", 0, min(len(X_test_local)-1, 99), 0)
                     try:
-                        st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test_local.iloc[instance_idx,:], link="logit"))
+                        st_shap(shap.force_plot(
+                            explainer.expected_value[1],
+                            shap_values[1][instance_idx, :],
+                            X_test_local.iloc[instance_idx, :],
+                            feature_names=features,
+                            link="logit"
+                        ))
                     except Exception as e:
                         st.error("Failed to render SHAP force plot.")
                         logger.error(f"SHAP force plot rendering failed: {e}")
@@ -399,7 +410,8 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         if not df_clust.empty:
             try:
                 n_clusters = st.slider("Select Number of Clusters", 2, 5, 3)
-                X_clust = StandardScaler().fit_transform(df_clust[['temperature', 'pressure']])
+                scaler = StandardScaler()
+                X_clust = scaler.fit_transform(df_clust[['temperature', 'pressure']])
                 kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto').fit(X_clust)
                 df_clust['ml_cluster'] = kmeans.labels_
                 col1, col2 = st.columns(2)
@@ -411,7 +423,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2:
                     st.markdown("##### Modern: Multi-Dimensional Clustering")
                     fig2 = px.scatter(df_clust, x='temperature', y='pressure', color='ml_cluster', title='Failures Grouped by ML Clusters', color_continuous_scale=px.colors.qualitative.Plotly)
-                    centers = StandardScaler().inverse_transform(kmeans.cluster_centers_)
+                    centers = scaler.inverse_transform(kmeans.cluster_centers_)
                     fig2.add_trace(go.Scatter(x=centers[:,0], y=centers[:,1], mode='markers', marker=dict(symbol='x', color='black', size=12), name='Cluster Centers'))
                     st.plotly_chart(fig2, use_container_width=True)
             except Exception as e:
