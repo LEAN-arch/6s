@@ -1,9 +1,9 @@
-# philips_quality_optimizer/utils/plotting.py
+# 6s/utils/plotting.py
 """
 Utility functions for creating standardized statistical plots.
 
 This module contains helper functions that generate various Plotly figures
-used throughout the Quality Optimization Command Center, particularly within the
+used throughout the 6σ Quality Command Center, particularly within the
 DMAIC and Product Release toolkits. This centralization ensures a consistent
 and professional visual style for all data analysis.
 """
