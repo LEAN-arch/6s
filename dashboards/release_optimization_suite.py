@@ -1,4 +1,4 @@
-# philips_quality_optimizer/dashboards/release_optimization_suite.py
+# 6s/dashboards/release_optimization_suite.py
 """
 Renders the Product Release Optimization Suite.
 
@@ -19,7 +19,7 @@ from sklearn.metrics import roc_curve, auc
 
 logger = logging.getLogger(__name__)
 
-from philips_quality_optimizer.data.session_state_manager import SessionStateManager
+from 6s.data.session_state_manager import SessionStateManager
 
 def render_release_optimization_suite(ssm: SessionStateManager) -> None:
     """
