@@ -1,4 +1,4 @@
-# philips_quality_optimizer/dashboards/global_operations_dashboard.py
+# 6s/dashboards/global_operations_dashboard.py
 """
 Renders the Global Operations Dashboard.
 
@@ -15,7 +15,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Ensure the app's root directory is in the path
-from philips_quality_optimizer.data.session_state_manager import SessionStateManager
+from 6s.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
