@@ -7,8 +7,9 @@ improvement projects. The architecture is centered on the DMAIC methodology and
 is supported by a suite of sophisticated dashboards for strategic oversight,
 deep-dive analysis, and advanced statistical modeling.
 
-SME Overhaul:
-- Complete re-architecture for a commercial-grade, professional feel.
+SME Definitive Overhaul:
+- The fragile, custom path-correction block has been removed in favor of the
+  standard, robust `python -m` execution method.
 - A sophisticated sidebar navigation organizes the platform into logical, icon-driven
   workspaces, significantly improving user experience.
 - All modules are fully integrated, and redundant/deprecated modules have been removed,
@@ -17,28 +18,12 @@ SME Overhaul:
 """
 
 import logging
-import os
 import sys
 import streamlit as st
 
-# --- Robust Path Correction Block ---
-# Ensures that the application can be run from different directories by adding the
-# project root to the system path, allowing for stable local imports.
-try:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(current_dir)
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-except Exception as e:
-    # Fallback for environments where __file__ is not defined
-    project_root = os.path.abspath(os.path.join(os.getcwd(), "."))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-    st.warning(f"Path correction failed with error: {e}. Assuming execution from project root.")
-
 # --- Local Application Imports ---
 # This block centrally imports all necessary dashboard rendering functions.
-# A failure here indicates a critical problem with the project structure.
+# The robust `python -m six_sigma.app` command ensures the six_sigma package is on the path.
 try:
     from six_sigma.data.session_state_manager import SessionStateManager
     from six_sigma.dashboards.global_operations_dashboard import render_global_dashboard
@@ -52,8 +37,8 @@ try:
 except ImportError as e:
     st.error(
         f"Fatal Error: A required application module could not be imported: {e}. "
-        "Please ensure the project structure is correct and all subdirectories "
-        "contain an `__init__.py` file. The application cannot continue."
+        "This usually means the app was not run from the project's root directory. "
+        "Please run the app using the command: `python -m six_sigma.app`"
     )
     logging.critical(f"Fatal module import error: {e}", exc_info=True)
     st.stop()
