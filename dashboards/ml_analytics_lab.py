@@ -66,8 +66,8 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     st.header("🔬 Classical Statistics vs. Modern Machine Learning")
     st.markdown("A comparative lab to understand the strengths and weaknesses of traditional statistical methods versus modern ML approaches for common Six Sigma tasks. This workspace is designed to build intuition and expand your analytical toolkit.")
 
-    # --- Centralized Model Training ---
-    # We train the models once and cache them. This is a safe and efficient pre-computation.
+    # --- Centralized Model Training for non-SHAP tabs ---
+    # This is safe and efficient for models used in multiple, non-SHAP contexts.
     models_trained = False
     df_pred = ssm.get_data("predictive_quality_data")
     if not df_pred.empty:
@@ -76,7 +76,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
         
-        # Use @st.cache_resource to cache the actual model objects
         @st.cache_resource
         def get_trained_models():
             with st.spinner("Training predictive models (first run only)..."):
@@ -159,11 +158,24 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
             st.markdown("""... (Explanation content remains the same) ...""")
         
-        if models_trained:
-            # *** DEFINITIVE FIX: Perform SHAP calculation within this tab's scope for guaranteed robustness ***
+        if df_pred.empty:
+            st.warning("Predictive quality data is not available.")
+        else:
+            # *** DEFINITIVE FIX: Perform the entire SHAP workflow live and in-scope ***
+            # This is the most robust solution to prevent state inconsistencies.
             with st.spinner("Calculating SHAP values for driver analysis..."):
-                explainer = shap.TreeExplainer(model_rf)
-                shap_values = explainer.shap_values(X_test)
+                # 1. Re-split the data locally for this tab
+                features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
+                target = 'final_qc_outcome'
+                X_local, y_local = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+                X_train_local, X_test_local, y_train_local, _ = train_test_split(X_local, y_local, test_size=0.3, random_state=42, stratify=y_local)
+                
+                # 2. Train a local model (this is fast)
+                model_rf_local = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train_local, y_train_local)
+
+                # 3. Create explainer and values from the local objects
+                explainer = shap.TreeExplainer(model_rf_local)
+                shap_values = explainer.shap_values(X_test_local)
 
             st.markdown("##### Global Feature Importance")
             col1, col2 = st.columns(2)
@@ -173,17 +185,14 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 st.plotly_chart(fig_box, use_container_width=True)
             with col2:
                 st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
+                fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test_local, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
             
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("##### Local (Single Prediction) Explanation")
             st.info("Select a specific unit from the test set to see exactly why the Random Forest model predicted it would fail or pass.")
-            instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
-            st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test.iloc[instance_idx,:], link="logit"))
-        else:
-            st.warning("Predictive quality data is not available or model training failed.")
+            instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test_local)-1, 0)
+            st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test_local.iloc[instance_idx,:], link="logit"))
 
-    # ... (The rest of the file remains exactly the same as the previous version) ...
     # ==================== TAB 4: PROCESS CONTROL (Anomaly Detection) ====================
     with tabs[3]:
         st.subheader("Challenge 4: Detect Unusual Behavior in a Live Process")
@@ -191,6 +200,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             st.markdown("""... (Explanation content remains the same) ...""")
         df_process = ssm.get_data("process_data")
         if not df_process.empty:
+            # ... (Content for this tab remains the same) ...
             process_series = df_process['seal_strength']
             iso_forest = IsolationForest(contamination='auto', random_state=42).fit(process_series.values.reshape(-1, 1)); df_process['anomaly'] = iso_forest.predict(process_series.values.reshape(-1, 1))
             col1, col2 = st.columns(2)
@@ -210,6 +220,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             st.markdown("""... (Explanation content remains the same) ...""")
         df_opt = ssm.get_data("optimization_data")
         if not df_opt.empty:
+            # ... (Content for this tab remains the same) ...
             result = run_bayesian_optimization(df_opt.to_dict('records'))
             sampled_points = np.array(result.x_iters)
             col1, col2 = st.columns(2)
@@ -229,6 +240,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             st.markdown("""... (Explanation content remains the same) ...""")
         df_clust = ssm.get_data("failure_clustering_data")
         if not df_clust.empty:
+            # ... (Content for this tab remains the same) ...
             X_clust = StandardScaler().fit_transform(df_clust[['temperature', 'pressure']]); kmeans = KMeans(n_clusters=3, random_state=42, n_init='auto').fit(X_clust); df_clust['ml_cluster'] = kmeans.labels_
             col1, col2 = st.columns(2)
             with col1:
