@@ -84,7 +84,11 @@ def _render_fishbone_diagram(effect: str):
         # Pre-process labels to escape quotes
         escaped_effect = effect.replace('"', '\\"')
         sub_labels = [
-            f"{cat}_sub{i} [label=\"{sub.replace('\"', '\\\"')}\", shape=ellipse, fillcolor=lightyellow] -> {cat}"
+            "{} [label=\"{}\", shape=ellipse, fillcolor=lightyellow] -> {}".format(
+                f"{cat}_sub{i}",
+                sub.replace('"', '\\"'),
+                cat
+            )
             for cat, subs in causes.items()
             for i, sub in enumerate(subs)
         ]
@@ -523,5 +527,3 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
 if __name__ == "__main__":
     ssm = SessionStateManager()  # Assumed to be defined elsewhere
     render_dmaic_toolkit(ssm)
-
-
