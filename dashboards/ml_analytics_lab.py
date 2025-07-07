@@ -66,7 +66,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     st.markdown("A comparative lab to understand the strengths and weaknesses of traditional statistical methods versus modern ML approaches for common Six Sigma tasks. This workspace is designed to build intuition and expand your analytical toolkit.")
 
     # --- Centralized Model Training ---
-    # We train the models once here to be used by multiple tabs.
+    # We train the models once here to be used by multiple tabs. This is a safe and efficient pre-computation.
     models_trained = False
     df_pred = ssm.get_data("predictive_quality_data")
     if not df_pred.empty:
@@ -75,9 +75,15 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
         
-        with st.spinner("Training predictive models..."):
-            model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-            model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
+        # We cache the models to avoid re-training on every interaction.
+        @st.cache_resource
+        def get_trained_models():
+            with st.spinner("Training predictive models (first run only)..."):
+                model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
+                model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
+            return model_rf, model_lr
+
+        model_rf, model_lr = get_trained_models()
         models_trained = True
 
     # --- Main UI Tabs ---
@@ -112,7 +118,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 st.markdown("##### Classical: Logistic Regression")
                 st.write("The model's simple, linear 'formula':")
                 coef_df = pd.DataFrame(model_lr.coef_, columns=features, index=['Coefficient']).T
-                st.dataframe(coef_df.style.background_gradient(cmap='RdYlGn', axis=0))
+                st.dataframe(coef_df.style.background_gradient(cmap='RdYlGn_r', axis=0))
                 st.caption("A positive coefficient increases the odds of failure.")
             with col2:
                 st.markdown("##### Modern: Random Forest")
@@ -142,7 +148,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
              st.markdown("""
              **The Goal:** Quantify how good our final product test is. Does a high measurement value truly indicate a bad batch? This applies to any binary classification test, from a simple rule to a complex ML model.
              
-             - **Analogy 1 (Example 3): Medical Test.** An ROC curve helps understand the trade-off: If a doctor makes a test *very sensitive* (catching every sick person), they will inevitably get more *false positives* (telling healthy people they are sick).
+             - **Analogy 1 (Example 3): Medical Test.** An ROC curve helps understand the fundamental trade-off: If a doctor makes a test *very sensitive* (catching every sick person), they will inevitably get more *false positives* (telling healthy people they are sick).
              - **Analogy 2 (Example 4): Spam Filter.** If a spam filter is *too aggressive*, it catches all spam but also puts important emails in the junk folder (false positives). If it's *too lenient*, it lets some spam through (false negatives).
              - **The AUC (Area Under the Curve)** metric summarizes this entire trade-off into one number. An AUC of 1.0 is a perfect test. An AUC of 0.5 is a useless test (a coin flip).
              
@@ -189,8 +195,9 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             #### SME Verdict
             **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
             """)
+        
         if models_trained:
-            # *** FIX: Perform SHAP calculation within this tab's scope for robustness ***
+            # Perform SHAP calculation within this tab's scope for guaranteed robustness
             with st.spinner("Calculating SHAP values for driver analysis..."):
                 explainer = shap.TreeExplainer(model_rf)
                 shap_values = explainer.shap_values(X_test)
