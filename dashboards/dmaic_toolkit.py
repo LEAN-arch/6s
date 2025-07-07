@@ -524,6 +524,4 @@ if __name__ == "__main__":
     ssm = SessionStateManager()  # Assumed to be defined elsewhere
     render_dmaic_toolkit(ssm)
 
-if __name__ == "__main__":
-    ssm = SessionStateManager()  # Assumed to be defined elsewhere
-    render_dmaic_toolkit(ssm)
+
