@@ -80,21 +80,31 @@ def st_shap(plot, height: int = None) -> None:
         logger.error(f"Failed to render SHAP plot: {e}")
         st.error("Unable to render SHAP plot. Please check the SHAP library installation.")
 
-@st.cache_data(hash_funcs={dict: lambda x: str(sorted(x.items()))})
-def run_bayesian_optimization(df_opt_serializable: dict, n_calls: int = 15) -> object:
+def bayesian_objective_func(params, df_opt: pd.DataFrame) -> float:
+    """Objective function for Bayesian optimization, defined at module level to be picklable."""
+    try:
+        x, y = params
+        return -df_opt.loc[((df_opt['x'] - x)**2 + (df_opt['y'] - y)**2).idxmin()]['z']
+    except Exception as e:
+        logger.error(f"Bayesian objective function failed: {e}")
+        raise
+
+@st.cache_data
+def run_bayesian_optimization(df_opt: pd.DataFrame, n_calls: int = 15) -> object:
     """Cached function to run Bayesian Optimization with validation."""
     try:
-        df_opt = pd.DataFrame(df_opt_serializable)
         required_columns = ['x', 'y', 'z']
         if not all(col in df_opt.columns for col in required_columns):
             logger.error(f"Missing columns in df_opt: {set(required_columns) - set(df_opt.columns)}")
             st.error("Optimization data is missing required columns.")
             return None
         bounds = [Real(-5, 5, name='x'), Real(-5, 5, name='y')]
-        def objective_func(params):
-            x, y = params
-            return -df_opt.loc[((df_opt['x'] - x)**2 + (df_opt['y'] - y)**2).idxmin()]['z']
-        result = gp_minimize(objective_func, bounds, n_calls=min(n_calls, 10), random_state=42)
+        result = gp_minimize(
+            lambda params: bayesian_objective_func(params, df_opt),
+            bounds,
+            n_calls=min(n_calls, 10),
+            random_state=42
+        )
         return result
     except Exception as e:
         logger.error(f"Bayesian optimization failed: {e}")
@@ -255,7 +265,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
 
     # ==================== TAB 3: DRIVER ANALYSIS (Explainability) ====================
     with tabs[2]:
-        st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
+        st.subheader("Challenge 3: Understand the 'Why' Behind法的 Behind Failures")
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
             st.markdown("""... (Explanation content remains the same) ...""")
 
@@ -354,7 +364,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             st.markdown("""... (Explanation content remains the same) ...""")
         df_opt = ssm.get_data("optimization_data")
         if not df_opt.empty:
-            result = run_bayesian_optimization(df_opt.to_dict('records'))
+            result = run_bayesian_optimization(df_opt)
             if result is not None:
                 sampled_points = np.array(result.x_iters)
                 col1, col2 = st.columns(2)
