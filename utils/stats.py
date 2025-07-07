@@ -1,4 +1,4 @@
-# philips_quality_optimizer/utils/stats.py
+# 6s/utils/stats.py
 """
 Utility functions for performing standardized statistical calculations.
 
