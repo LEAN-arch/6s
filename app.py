@@ -83,9 +83,6 @@ def main() -> None:
     Main function to initialize the application, manage session state, and
     render the selected dashboard.
     """
-    # Suppress a common warning from SHAP plots used in the ML lab.
-    st.set_option('deprecation.showPyplotGlobalUse', False)
-
     st.title("📈 Six Sigma Command Center")
     st.caption("A Commercial-Grade Platform for Data-Driven Process Excellence")
 
