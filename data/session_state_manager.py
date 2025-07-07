@@ -77,9 +77,11 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
 
     # --- 4. Structured Datasets for Statistical Tools ---
     gage_data = []
-    for part in range(1, 11):
+    parts = range(1, 11)
+    operators = ["Operator A", "Operator B", "Operator C"]
+    for part in parts:
         true_value = 10 + part * 0.1
-        for operator in ["Operator A", "Operator B", "Operator C"]:
+        for operator in operators:
             op_bias = 0.01 if operator == "Operator B" else -0.01 if operator == "Operator C" else 0
             for replicate in range(3):
                 measurement = true_value + op_bias + np.random.normal(0, 0.05)
@@ -112,7 +114,7 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
 
 class SessionStateManager:
     _DATA_KEY = "six_sigma_mbb_data"
-    _CURRENT_DATA_VERSION = 4 # Incremented for MBB overhaul
+    _CURRENT_DATA_VERSION = 5 # Incremented for final MBB overhaul
 
     def __init__(self):
         session_data = st.session_state.get(self._DATA_KEY)
