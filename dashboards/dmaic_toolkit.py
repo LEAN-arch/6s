@@ -78,21 +78,26 @@ def _render_fishbone_diagram(effect: str) -> None:
     }
     try:
         escaped_effect = effect.replace('"', '\\"')
-        sub_labels = [
-            f"{cat}_sub{i} [label=\"{sub.replace('\"', '\\\"')}\", shape=ellipse, fillcolor=lightyellow] -> {cat}"
-            for cat, subs in causes.items()
-            for i, sub in enumerate(subs)
-        ]
-        dot = f'''
+        sub_labels = []
+        for cat, subs in causes.items():
+            for i, sub in enumerate(subs):
+                escaped_sub = sub.replace('"', '\\"')
+                sub_labels.append(f"{cat}_sub{i} [label=\"{escaped_sub}\", shape=ellipse, fillcolor=lightyellow] -> {cat}")
+        dot = '''
         digraph {{
             rankdir=LR;
             node [shape=box, style=filled, fillcolor=lightblue];
-            Effect [label="{escaped_effect}", fillcolor=firebrick, fontcolor=white];
-            {" ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()])};
-            {" ".join([f"{cat} -> Effect" for cat in causes.keys()])};
-            {" ".join(sub_labels)};
+            Effect [label="{0}"];
+            {1};
+            {2};
+            {3};
         }}
-        '''
+        '''.format(
+            escaped_effect,
+            "; ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()]),
+            "; ".join([f"{cat} -> Effect" for cat in causes.keys()]),
+            "; ".join(sub_labels)
+        )
         st.graphviz_chart(dot)
     except Exception as e:
         st.error("Failed to render Fishbone diagram due to Graphviz error.")
@@ -229,7 +234,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         colors = {
                             'R': 'background-color: #a8d8ea',
                             'A': 'background-color: #f4c7c3',
-                            'C': 'background-color: #b8d8be',
+                            'C': 'background-color: #还不 'b8d8be',
                             'I': 'background-color: #e0e0e0'
                         }
                         return colors.get(val, '')
