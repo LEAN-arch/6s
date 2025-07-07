@@ -43,13 +43,13 @@ def calculate_gage_rr(df: pd.DataFrame) -> Tuple[pd.DataFrame, go.Figure, go.Fig
         model = ols(formula, data=df).fit()
         anova_table = anova_lm(model, typ=2)
         
-        # <--- FIX: Robustly determine the name of the Mean Squares column --->
-        if 'MS' in anova_table.columns:
-            ms_col = 'MS'
-        elif 'mean_sq' in anova_table.columns:
-            ms_col = 'mean_sq'
-        else:
-            raise KeyError("Could not find Mean Squares column ('MS' or 'mean_sq') in ANOVA table.")
+        # <--- FIX: Manually calculate the Mean Squares (MS) column for robustness --->
+        # This is more reliable than checking for 'MS' or 'mean_sq' column names.
+        if 'sum_sq' not in anova_table.columns or 'df' not in anova_table.columns:
+            raise KeyError("ANOVA table from statsmodels is missing 'sum_sq' or 'df' columns.")
+        
+        anova_table['MS'] = anova_table['sum_sq'] / anova_table['df']
+        ms_col = 'MS'
         # <--- End of Fix --->
 
         n_parts = df['part_id'].nunique()
