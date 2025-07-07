@@ -146,283 +146,9 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             logger.error(f"Invalid team format for project {selected_id}: {project['team']}")
             return
         project_data = dmaic_data.get(selected_id)
-        if not project_data:
+        if not isinstance(project_data, dict):
             st.error(f"No data found for project {selected_id}.")
-            logger.error(f"No project_data for ID {selected_id}")
-            return
-
-        phase_tabs = st.tabs(["**✅ DEFINE**", "**📏 MEASURE**", "**🔍 ANALYZE**", "**💡 IMPROVE**", "**🛡️ CONTROL**"])
-
-        # ==================== DEFINE PHASE ====================
-        with phase_tabs[0]:
-            st.subheader(f"Define Phase: Scope the Project")
-            st.info("The **Define** phase is about clearly articulating the business problem, goal, scope, and team for the project. The Project Charter is the guiding document for the entire effort.")
-            with st.container(border=True):
-                st.markdown(f"### Project Charter: {project['title']}")
-                st.markdown(f"**Site:** {project['site']} | **Product Line:** {project['product_line']} | **Start Date:** {project['start_date']}")
-                st.markdown(f"**Team:** {', '.join(project['team'])}")
-                st.divider()
-                st.error(f"**Problem Statement:**\n\n> {project['problem_statement']}", icon="❗️")
-                st.success(f"**Goal Statement (S.M.A.R.T.):**\n\n> {project['goal_statement']}", icon="🎯")
-            
-            st.markdown("---")
-            with st.expander("##### 📖 Explore Define Phase Tollgate Documents & Tools"):
-                doc_tabs = st.tabs(["SIPOC Diagram", "VOC & CTQ Tree", "Stakeholder Analysis (RACI)"])
-                with doc_tabs[0]:
-                    st.markdown("**SIPOC Diagram (Suppliers, Inputs, Process, Outputs, Customers)**")
-                    st.caption("A high-level map of the process from start to finish. It helps define the project boundaries and scope.")
-                    try:
-                        st.graphviz_chart(r'''
-                            digraph {
-                                rankdir=LR;
-                                node [shape=box, style=rounded];
-                                Suppliers [label="Suppliers\\n- Component Vendors\\n- Sub-Assembly Line"];
-                                Inputs [label="Inputs\\n- Capacitors, PCBs\\n- Housing, Screws"];
-                                Process [label="Process Steps\\n1. Inspect\\n2. Assemble\\n3. Solder\\n4. Test"];
-                                Outputs [label="Outputs\\n- Functional Module"];
-                                Customers [label="Customers\\n- Main Assembly Line\\n- Final Product"];
-                                Suppliers -> Inputs -> Process -> Outputs -> Customers;
-                            }
-                        ''')
-                    except Exception as e:
-                        st.error("Failed to render SIPOC diagram.")
-                        logger.error(f"SIPOC diagram rendering failed: {e}")
-                with doc_tabs[1]:
-                    st.markdown("**Voice of the Customer (VOC) & Critical-to-Quality (CTQ) Tree**")
-                    st.caption("Translate customer needs into measurable product/process characteristics.")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("###### Kano Model Visualization")
-                        st.write("Customer feedback is classified to prioritize features.")
-                        kano_data = project_data.get("kano_data", pd.DataFrame({
-                            'Feature': ['Fits in housing', 'Charges quickly', 'Looks sleek'],
-                            'Satisfaction': [2, 8, 10],
-                            'Execution': [2, 7, 3],
-                            'Type': ['Basic', 'Performance', 'Exciter']
-                        }))
-                        try:
-                            fig = px.scatter(kano_data, x='Execution', y='Satisfaction', text='Feature', color='Type', title="Kano Model Analysis", labels={'Execution': 'Degree of Execution', 'Satisfaction': 'Customer Satisfaction'})
-                            fig.update_traces(textposition='top center')
-                            st.plotly_chart(fig, use_container_width=True)
-                        except Exception as e:
-                            st.error("Failed to render Kano model plot.")
-                            logger.error(f"Kano model plot failed: {e}")
-                    with col2:
-                        st.markdown("###### CTQ Tree")
-                        st.write("The needs are broken down into measurable requirements.")
-                        try:
-                            st.graphviz_chart(r'''
-                                digraph {
-                                    "Fit in housing" -> "Correct Dimensions";
-                                    "Correct Dimensions" -> "Length: 10±0.1mm";
-                                    "Correct Dimensions" -> "Width: 8±0.1mm";
-                                }
-                            ''')
-                        except Exception as e:
-                            st.error("Failed to render CTQ tree.")
-                            logger.error(f"CTQ tree rendering failed: {e}")
-                with doc_tabs[2]:
-                    st.markdown("**Stakeholder Analysis / RACI Matrix**")
-                    st.caption("Defines the roles and responsibilities of team members. (Responsible, Accountable, Consulted, Informed)")
-                    raci_data = project_data.get("raci_data", {
-                        'Task': ["Define Scope", "Collect Data", "Analyze Data", "Approve Solution"],
-                        'John (MBB)': ['A', 'C', 'A', 'A'],
-                        'Jane (Engineer)': ['R', 'R', 'R', 'C'],
-                        'Mike (Ops)': ['C', 'R', 'C', 'I']
-                    })
-                    raci_df = pd.DataFrame(raci_data).set_index('Task')
-                    def color_raci(val):
-                        colors = {
-                            'R': 'background-color: #a8d8ea',  # Light Blue
-                            'A': 'background-color: #f4c7c3',  # Light Red
-                            'C': 'background-color: #b8d8be',  # Light Green
-                            'I': 'background-color: #e0e0e0'   # Light Grey
-                        }
-                        return colors.get(val, '')
-                    try:
-                        st.dataframe(raci_df.style.map(color_raci), use_container_width=True)
-                    except Exception as e:
-                        st.error("Failed to render RACI matrix.")
-                        logger.error(f"RACI matrix rendering failed: {e}")
-
-        # ==================== MEASURE PHASE ====================
-        with phase_tabs[1]:
-            st.subheader("Measure Phase: Quantify the Problem")
-            st.info("The **Measure** phase is about collecting data to establish a performance baseline and verifying that your measurement system is reliable enough to be trusted.")
-            st.markdown("#### 1. Establish Process Baseline")
-            if not isinstance(project_data, dict) or "baseline" not in project_data or "specs" not in project_data:
-                st.error(f"Invalid project_data structure for project {selected_id}.")
-                logger.error(f"Invalid project_data structure for {selected_id}")
-            else:
-                baseline_series = project_data["ША
-
-System: The error logs indicate two issues in `/mount/src/six_sigma/dashboards/dmaic_toolkit.py`:
-
-1. **Regression Analysis Error** at line 457: `object of type 'NoneType' has no len()`. This occurs in the "Regression Analysis" section of the Analyze phase, where the `y` variable in the regression data is likely `None`, causing a failure when its length is accessed.
-2. **Deprecation Warning** at lines 243 and 457: `Styler.applymap has been deprecated. Use Styler.map instead.` This indicates the use of the deprecated `applymap` method in the RACI matrix (Define phase) and Pugh matrix (Improve phase) styling.
-
-### Fixes Applied
-#### 1. Regression Analysis Error
-The error in the regression analysis section is fixed by adding validation to ensure `X` and `y` are valid arrays before performing the analysis. A fallback generates synthetic data if `y` is `None` or invalid, ensuring compatibility with `statsmodels` and `plotly`.
-
-#### 2. Deprecation Warning
-Replaced `Styler.applymap` with `Styler.map` in the RACI matrix (Define phase) and Pugh matrix (Improve phase) to eliminate the deprecation warnings.
-
-### Corrected Code
-Below is the updated `dmaic_toolkit.py`, addressing both the regression error and the deprecation warnings. The file retains all previous fixes (e.g., Fishbone diagram f-string issue) and ensures robustness.
-
-```python
-"""
-Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
-workspace for project execution within the Command Center.
-
-This module provides an interactive, end-to-end environment for executing
-complex Six Sigma projects. It guides an MBB through each phase of the DMAIC
-methodology (Define, Measure, Analyze, Improve, Control), embedding the
-application's advanced statistical and plotting utilities directly into the
-project workflow.
-
-SME Masterclass Overhaul:
-- Architected as a fully integrated, DYNAMIC project-centric workspace. Selecting
-  a project now loads a dataset SPECIFIC to that project's problem.
-- **Massively Extended:** Each DMAIC phase now includes an expandable 'Tollgate
-  Documents' section, providing detailed, realistic examples and SME explanations
-  for a comprehensive suite of Six Sigma tools (e.g., VOC/Kano, FMEA, Pugh Matrix).
-- **Visually Rich:** All tollgate documents have been enhanced with professional
-  visualizations, including Graphviz diagrams, Pareto charts, VSM charts, and more,
-  transforming the toolkit into a world-class educational resource.
-- The Control phase shows a direct "before and after" comparison, visualizing
-  the simulated success of the project against the initial baseline.
-, encoding='utf-8'
-"""
-
-import logging
-import pandas as pd
-import streamlit as st
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-import statsmodels.api as sm
-
-from six_sigma.data.session_state_manager import SessionStateManager
-from six_sigma.utils.plotting import create_imr_chart, create_histogram_with_specs, create_doe_plots, create_gage_rr_plots
-from six_sigma.utils.stats import calculate_process_performance, perform_hypothesis_test, perform_anova_on_dataframe, calculate_gage_rr
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def validate_datasets(ssm: SessionStateManager) -> bool:
-    """Validate all required datasets for the DMAIC toolkit."""
-    datasets = {
-        "dmaic_projects": ["id", "title", "site", "product_line", "start_date", "team", "problem_statement", "goal_statement"],
-        "dmaic_project_data": ["baseline", "specs", "shifts"],
-        "gage_rr_data": [],
-        "doe_data": ["temp", "time", "pressure", "strength"]
-    }
-    for dataset, required_cols in datasets.items():
-        data = ssm.get_data(dataset)
-        if dataset == "dmaic_projects":
-            if not isinstance(data, list) or not data or not all(isinstance(p, dict) and all(col in p for col in required_cols) for p in data):
-                st.error(f"Invalid {dataset} structure.")
-                logger.error(f"Invalid {dataset} structure")
-                return False
-        elif dataset == "dmaic_project_data":
-            if not isinstance(data, dict) or not data or not all(isinstance(p.get("baseline", {}).get("measurement"), pd.Series) and all(k in p.get("specs", {}) for k in ["lsl", "usl", "target"]) for p in data.values()):
-                st.error(f"Invalid {dataset} structure.")
-                logger.error(f"Invalid {dataset} structure")
-                return False
-        else:
-            if data.empty or (required_cols and not all(col in data.columns for col in required_cols)):
-                st.error(f"Invalid or missing {dataset}.")
-                logger.error(f"Invalid {dataset}: {data.columns.tolist() if not data.empty else 'empty'}")
-                return False
-    return True
-
-def _render_fishbone_diagram(effect: str):
-    """Renders a visually appealing Fishbone (Ishikawa) diagram for RCA using Graphviz."""
-    if not effect or not isinstance(effect, str):
-        logger.error("Invalid effect parameter for Fishbone diagram")
-        st.error("Invalid effect parameter for Fishbone diagram")
-        return
-    st.markdown("##### Fishbone Diagram: Potential Causes")
-    causes = {
-        "Measurement": ["Gage not calibrated", "Incorrect test procedure"],
-        "Material": ["Inconsistent raw material", "Supplier quality issues"],
-        "Personnel": ["Inadequate training", "SOP not followed"],
-        "Environment": ["Poor lighting", "Temp/humidity fluctuations"],
-        "Machine": ["Fixture wear & tear", "Incorrect settings"],
-        "Method": ["Outdated SOP", "Inefficient assembly sequence"]
-    }
-    try:
-        # Pre-process labels to escape quotes
-        escaped_effect = effect.replace('"', '\\"')
-        sub_labels = [
-            "{} [label=\"{}\", shape=ellipse, fillcolor=lightyellow] -> {}".format(
-                f"{cat}_sub{i}",
-                sub.replace('"', '\\"'),
-                cat
-            )
-            for cat, subs in causes.items()
-            for i, sub in enumerate(subs)
-        ]
-        dot = r'''
-        digraph {
-            rankdir=LR;
-            node [shape=box, style=filled, fillcolor=lightblue];
-            Effect [label="%s", fillcolor=firebrick, fontcolor=white];
-            %s;
-            %s;
-            %s;
-        }
-        ''' % (
-            escaped_effect,
-            "; ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()]),
-            "; ".join([f"{cat} -> Effect" for cat in causes.keys()]),
-            "; ".join(sub_labels)
-        )
-        st.graphviz_chart(dot)
-    except Exception as e:
-        st.error("Failed to render Fishbone diagram.")
-        logger.error(f"Fishbone diagram rendering failed: {e}")
-
-def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
-    """Creates the UI for the DMAIC Improvement Toolkit workspace."""
-    if not isinstance(ssm, SessionStateManager):
-        st.error("Invalid SessionStateManager instance provided.")
-        logger.error("SessionStateManager is not properly initialized.")
-        return
-    if not validate_datasets(ssm):
-        return
-
-    st.header("🛠️ DMAIC Project Execution Toolkit")
-    st.markdown("Select an active improvement project below to access the full suite of DMAIC tools. This is your primary workspace for project execution, from definition to control.")
-
-    try:
-        projects = ssm.get_data("dmaic_projects")
-        dmaic_data = ssm.get_data("dmaic_project_data")
-        project_titles = {p['id']: f"{p['id']}: {p['title']}" for p in projects}
-        if not hasattr(st.session_state, 'selected_project_id') or st.session_state.selected_project_id not in project_titles:
-            st.session_state.selected_project_id = list(project_titles.keys())[0]
-        selected_id = st.selectbox("**Select Active Project:**", options=list(project_titles.keys()), format_func=lambda x: project_titles[x], help="The analysis in the tabs below will update based on this selection.")
-        project = next((p for p in projects if p['id'] == selected_id), None)
-        if not project:
-            st.error(f"Project with ID {selected_id} not found.")
-            logger.error(f"Project ID {selected_id} not found in projects")
-            return
-        required_keys = ['title', 'site', 'product_line', 'start_date', 'team', 'problem_statement', 'goal_statement']
-        if not all(key in project for key in required_keys):
-            st.error(f"Project {selected_id} missing required metadata: {set(required_keys) - set(project.keys())}")
-            logger.error(f"Project {selected_id} missing keys: {set(required_keys) - set(project.keys())}")
-            return
-        if not isinstance(project['team'], list):
-            st.error("Project team must be a list of members.")
-            logger.error(f"Invalid team format for project {selected_id}: {project['team']}")
-            return
-        project_data = dmaic_data.get(selected_id)
-        if not project_data:
-            st.error(f"No data found for project {selected_id}.")
-            logger.error(f"No project_data for ID {selected_id}")
+            logger.error(f"No project_data for ID {selected_id}: {project_data}")
             return
 
         phase_tabs = st.tabs(["**✅ DEFINE**", "**📏 MEASURE**", "**🔍 ANALYZE**", "**💡 IMPROVE**", "**🛡️ CONTROL**"])
@@ -680,31 +406,41 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 with doc_tabs[2]:
                     st.markdown("**Regression Analysis**")
                     st.caption("Models the relationship between an input (X) and an output (Y).")
-                    regression_data = project_data.get("regression_data", {'X': np.random.rand(50) * 10, 'y': None})
-                    X = regression_data.get('X')
-                    y = regression_data.get('y')
-                    # Validate regression data
-                    if X is None or y is None or not isinstance(X, (list, np.ndarray)) or not isinstance(y, (list, np.ndarray)):
-                        st.warning("Regression data is missing or invalid. Using synthetic data for demonstration.")
-                        logger.warning(f"Invalid regression data for project {selected_id}: X={type(X)}, y={type(y)}")
-                        X = np.random.rand(50) * 10
-                        y = 0.5 * X + np.random.randn(50) * 2 + 3
-                    try:
-                        if len(X) != len(y):
-                            st.error(f"Regression data mismatch: len(X)={len(X)}, len(y)={len(y)}. Using synthetic data.")
-                            logger.error(f"Regression data mismatch for project {selected_id}: len(X)={len(X)}, len(y)={len(y)}")
+                    if not isinstance(project_data, dict):
+                        st.error(f"Invalid project_data structure for project {selected_id}.")
+                        logger.error(f"Invalid project_data structure for {selected_id}: {type(project_data)}")
+                    else:
+                        regression_data = project_data.get("regression_data")
+                        if not isinstance(regression_data, dict):
+                            st.warning(f"Regression data missing for project {selected_id}. Using synthetic data.")
+                            logger.warning(f"Regression data missing for project {selected_id}: {regression_data}")
+                            regression_data = {'X': np.random.rand(50) * 10, 'y': None}
+                        X = regression_data.get('X')
+                        y = regression_data.get('y')
+                        # Validate regression data
+                        if (X is None or y is None or
+                            not isinstance(X, (list, np.ndarray, pd.Series)) or
+                            not isinstance(y, (list, np.ndarray, pd.Series))):
+                            st.warning("Regression data is missing or invalid. Using synthetic data for demonstration.")
+                            logger.warning(f"Invalid regression data for project {selected_id}: X={type(X)}, y={type(y)}")
                             X = np.random.rand(50) * 10
                             y = 0.5 * X + np.random.randn(50) * 2 + 3
-                        fig = px.scatter(x=X, y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols")
-                        st.plotly_chart(fig, use_container_width=True)
-                        X = np.array(X)  # Ensure X is a numpy array for statsmodels
-                        y = np.array(y)  # Ensure y is a numpy array
-                        model = sm.OLS(y, sm.add_constant(X)).fit()
-                        st.code(f"{model.summary()}")
-                        st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
-                    except Exception as e:
-                        st.error("Failed to perform regression analysis.")
-                        logger.error(f"Regression analysis failed: {e}")
+                        try:
+                            X = np.array(X)  # Ensure X is a numpy array
+                            y = np.array(y)  # Ensure y is a numpy array
+                            if len(X) != len(y):
+                                st.error(f"Regression data mismatch: len(X)={len(X)}, len(y)={len(y)}. Using synthetic data.")
+                                logger.error(f"Regression data mismatch for project {selected_id}: len(X)={len(X)}, len(y)={len(y)}")
+                                X = np.random.rand(50) * 10
+                                y = 0.5 * X + np.random.randn(50) * 2 + 3
+                            fig = px.scatter(x=X, y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols")
+                            st.plotly_chart(fig, use_container_width=True)
+                            model = sm.OLS(y, sm.add_constant(X)).fit()
+                            st.code(f"{model.summary()}")
+                            st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
+                        except Exception as e:
+                            st.error("Failed to perform regression analysis.")
+                            logger.error(f"Regression analysis failed: {e}")
 
         # ==================== IMPROVE PHASE ====================
         with phase_tabs[3]:
