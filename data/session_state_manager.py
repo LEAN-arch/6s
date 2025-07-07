@@ -1,4 +1,4 @@
-# philips_quality_optimizer/data/session_state_manager.py
+# 6s/data/session_state_manager.py
 """
 Manages the application's session state, acting as an in-memory data source
 for global manufacturing quality operations.
@@ -22,9 +22,8 @@ logger = logging.getLogger(__name__)
 
 def _create_quality_optimizer_model(version: int) -> Dict[str, Any]:
     """
-    Generates the complete, interconnected mock dataset for the Quality
-    Optimization Command Center. This model simulates a multi-site medical
-    device manufacturing environment.
+    Generates the complete, interconnected mock dataset for the 6σ Quality
+    Command Center. This model simulates a multi-site manufacturing environment.
     """
     # --- Base Configuration ---
     np.random.seed(42)
@@ -166,8 +165,8 @@ def _create_quality_optimizer_model(version: int) -> Dict[str, Any]:
 
 class SessionStateManager:
     """Handles the initialization and access of the application's session state."""
-    _DATA_KEY = "quality_optimizer_data"
-    _CURRENT_DATA_VERSION = 1  # Start with version 1 of the new model
+    _DATA_KEY = "6s_quality_data"
+    _CURRENT_DATA_VERSION = 1
 
     def __init__(self):
         """Initializes the session state, loading the mock data if necessary."""
