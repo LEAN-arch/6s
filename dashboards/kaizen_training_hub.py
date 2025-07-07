@@ -1,4 +1,4 @@
-# philips_quality_optimizer/dashboards/kaizen_training_hub.py
+# 6s/dashboards/kaizen_training_hub.py
 """
 Renders the Kaizen & Training Hub.
 
@@ -12,7 +12,7 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from philips_quality_optimizer.data.session_state_manager import SessionStateManager
+from 6s.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
