@@ -185,7 +185,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             st.warning("Predictive quality data is not available.")
         else:
             # Call the new encapsulated and cached function to get all necessary objects
-            with st.spinner("Calculating SHAP values for driver analysis..."):
+            with st.spinner("Calculating SHAP values for driver analysis (first run only)..."):
                 shap_objects = get_shap_explanation_objects(df_pred)
             
             explainer = shap_objects["explainer"]
