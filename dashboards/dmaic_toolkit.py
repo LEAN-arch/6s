@@ -152,7 +152,16 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
         with phase_tabs[2]:
             st.subheader("Analyze Phase: Identify Root Causes"); st.info("The **Analyze** phase is about using data and structured problem-solving tools to identify the verified root causes of the problem defined in the charter.")
             st.markdown("#### Root Cause Brainstorming & Verification")
-            rca_cols = st.columns(2); rca_cols[0].markdown("##### Fishbone Diagram"); _render_fishbone_diagram(effect="Low Sub-Assembly Yield"); rca_cols[1].markdown("##### 5 Whys Analysis"); st.info("Drill down past symptoms to find the true root cause."); st.text_input("1. Why is yield low?", "The alignment fixture is inconsistent.", key=f"why1_{project['id']}"); st.text_input("2. Why is it inconsistent?", "It wears down quickly.", key=f"why2_{project['id']}"); st.error("**Root Cause:** Process oversight during design transfer.", icon="🔑")
+            rca_cols = st.columns(2); 
+            with rca_cols[0]:
+                st.markdown("##### Fishbone Diagram")
+                _render_fishbone_diagram(effect="Low Sub-Assembly Yield")
+            with rca_cols[1]:
+                st.markdown("##### 5 Whys Analysis"); 
+                st.info("Drill down past symptoms to find the true root cause.")
+                st.text_input("1. Why is yield low?", "The alignment fixture is inconsistent.", key=f"why1_{project['id']}")
+                st.text_input("2. Why is it inconsistent?", "It wears down quickly.", key=f"why2_{project['id']}")
+                st.error("**Root Cause:** Process oversight during design transfer.", icon="🔑")
             st.markdown("---"); st.markdown("#### Data-Driven Analysis & Root Cause Verification")
             ht_shifts = project_data["shifts"]; result = perform_hypothesis_test(ht_shifts['shift_1'], ht_shifts['shift_2'])
             st.plotly_chart(px.box(pd.melt(ht_shifts, var_name='Group', value_name='Value'), x='Group', y='Value', color='Group', title="Hypothesis Test: Comparison of Production Shifts"), use_container_width=True)
@@ -168,11 +177,11 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 with doc_tabs[1]:
                     st.markdown("**Failure Mode and Effects Analysis (FMEA) - Risk Matrix**"); st.caption("A risk assessment tool to systematically identify and prioritize potential failure modes.")
                     fmea_data = pd.DataFrame({'Failure Mode': ['Misalignment', 'Dropped Part', 'Wrong Setting'], 'Severity': [8, 5, 9], 'Occurrence': [5, 2, 1], 'Detection': [3, 6, 8]}); fmea_data['RPN'] = fmea_data['Severity'] * fmea_data['Occurrence'] * fmea_data['Detection']
-                    fig = px.scatter(fmea_data, x='Occurrence', y='Severity', size='RPN', color='RPN', text='Failure Mode', title='FMEA Risk Prioritization'); st.plotly_chart(fig, use_container_width=True)
+                    fig = px.scatter(fmea_data, x='Occurrence', y='Severity', size='RPN', color='RPN', text='Failure Mode', title='FMEA Risk Prioritization', size_max=60); st.plotly_chart(fig, use_container_width=True)
                 with doc_tabs[2]:
-                    st.markdown("**Regression Analysis**"); st.caption("Models the relationship between an input (X) and an output (Y)."); X = np.random.rand(50) * 10; y = 0.5 * X + np.random.randn(50) * 2 + 3; model = sm.OLS(y, sm.add_constant(X)).fit()
-                    fig = px.scatter(x=X[:,1], y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols"); st.plotly_chart(fig, use_container_width=True)
-                    st.code(f"{model.summary()}"); st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
+                    st.markdown("**Regression Analysis**"); st.caption("Models the relationship between an input (X) and an output (Y)."); X = np.random.rand(50) * 10; y = 0.5 * X + np.random.randn(50) * 2 + 3;
+                    fig = px.scatter(x=X, y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols"); st.plotly_chart(fig, use_container_width=True)
+                    model = sm.OLS(y, sm.add_constant(X)).fit(); st.code(f"{model.summary()}"); st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
         
         # ==================== IMPROVE PHASE ====================
         with phase_tabs[3]:
