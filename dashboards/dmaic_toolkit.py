@@ -232,10 +232,10 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     raci_df = pd.DataFrame(raci_data).set_index('Task')
                     def color_raci(val):
                         colors = {
-                            'R': 'background-color: #a8d8ea',
-                            'A': 'background-color: #f4c7c3',
-                            'C': 'background-color: #还不 'b8d8be',
-                            'I': 'background-color: #e0e0e0'
+                            'R': 'background-color: #a8d8ea',  # Light Blue
+                            'A': 'background-color: #f4c7c3',  # Light Red
+                            'C': 'background-color: #b8d8be',  # Light Green
+                            'I': 'background-color: #e0e0e0'   # Light Grey
                         }
                         return colors.get(val, '')
                     try:
