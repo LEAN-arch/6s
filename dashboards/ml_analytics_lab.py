@@ -89,9 +89,8 @@ def bayesian_objective_func(params, df_opt: pd.DataFrame) -> float:
         logger.error(f"Bayesian objective function failed: {e}")
         raise
 
-@st.cache_data
 def run_bayesian_optimization(df_opt: pd.DataFrame, n_calls: int = 15) -> object:
-    """Cached function to run Bayesian Optimization with validation."""
+    """Run Bayesian Optimization with validation, without caching."""
     try:
         required_columns = ['x', 'y', 'z']
         if not all(col in df_opt.columns for col in required_columns):
@@ -99,12 +98,13 @@ def run_bayesian_optimization(df_opt: pd.DataFrame, n_calls: int = 15) -> object
             st.error("Optimization data is missing required columns.")
             return None
         bounds = [Real(-5, 5, name='x'), Real(-5, 5, name='y')]
-        result = gp_minimize(
-            lambda params: bayesian_objective_func(params, df_opt),
-            bounds,
-            n_calls=min(n_calls, 10),
-            random_state=42
-        )
+        with st.spinner("Running Bayesian optimization..."):
+            result = gp_minimize(
+                lambda params: bayesian_objective_func(params, df_opt),
+                bounds,
+                n_calls=min(n_calls, 10),
+                random_state=42
+            )
         return result
     except Exception as e:
         logger.error(f"Bayesian optimization failed: {e}")
@@ -265,7 +265,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
 
     # ==================== TAB 3: DRIVER ANALYSIS (Explainability) ====================
     with tabs[2]:
-        st.subheader("Challenge 3: Understand the 'Why' Behind法的 Behind Failures")
+        st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
             st.markdown("""... (Explanation content remains the same) ...""")
 
