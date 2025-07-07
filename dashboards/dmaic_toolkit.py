@@ -44,6 +44,9 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                     return False
                 for project_id in data.index:
                     project_data = data.loc[project_id]
+                    logger.info(f"Project {project_id} data type: {type(project_data)}")
+                    if isinstance(project_data, pd.Series):
+                        project_data = project_data.to_dict()
                     baseline = project_data.get("baseline", {}).get("measurement")
                     specs = project_data.get("specs", {})
                     shifts = project_data.get("shifts", {})
@@ -65,12 +68,15 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                             "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
                         }
             else:
-                # Assume dictionary structure as fallback
+                # Handle dictionary structure
                 if not isinstance(data, dict) or not data:
                     st.error(f"Invalid {dataset} structure: empty or not a dictionary.")
                     logger.error(f"Invalid {dataset} structure: {type(data)}")
                     return False
                 for project_id, p in data.items():
+                    logger.info(f"Project {project_id} data type: {type(p)}")
+                    if isinstance(p, (pd.DataFrame, pd.Series)):
+                        p = p.to_dict() if isinstance(p, pd.Series) else p.to_dict('records')[0]
                     baseline = p.get("baseline", {}).get("measurement")
                     specs = p.get("specs", {})
                     shifts = p.get("shifts", {})
@@ -87,6 +93,7 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                     ):
                         st.warning(f"Missing or invalid shift data for project {project_id}. Using synthetic shift data for demonstration.")
                         logger.warning(f"Missing or invalid shift data for {project_id}: {shifts.keys() if shifts else 'no shifts key'}")
+                        data[project_id] = p  # Ensure p is a dict
                         data[project_id]["shifts"] = {
                             "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
                             "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
@@ -195,9 +202,11 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             project_data = dmaic_data.loc[selected_id].to_dict()
         else:
             project_data = dmaic_data.get(selected_id)
+            if isinstance(project_data, (pd.DataFrame, pd.Series)):
+                project_data = project_data.to_dict() if isinstance(project_data, pd.Series) else project_data.to_dict('records')[0]
             if not isinstance(project_data, dict):
                 st.error(f"No data found for project {selected_id}.")
-                logger.error(f"No project_data for ID {selected_id}: {project_data}")
+                logger.error(f"No project_data for ID {selected_id}: {type(project_data)}")
                 return
 
         phase_tabs = st.tabs(["**✅ DEFINE**", "**📏 MEASURE**", "**🔍 ANALYZE**", "**💡 IMPROVE**", "**🛡️ CONTROL**"])
@@ -301,7 +310,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.markdown("#### 1. Establish Process Baseline")
             if not isinstance(project_data, dict) or "baseline" not in project_data or "specs" not in project_data:
                 st.error(f"Invalid project_data structure for project {selected_id}.")
-                logger.error(f"Invalid project_data structure for {selected_id}")
+                logger.error(f"Invalid project_data structure for {selected_id}: {type(project_data)}")
             else:
                 baseline_series = project_data["baseline"].get("measurement")
                 specs = project_data["specs"]
