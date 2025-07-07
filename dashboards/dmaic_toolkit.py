@@ -1,4 +1,4 @@
-# 6s/dashboards/dmaic_toolkit.py
+# six_sigma/dashboards/dmaic_toolkit.py
 """
 Renders the DMAIC Improvement Toolkit.
 
@@ -14,9 +14,9 @@ import streamlit as st
 import plotly.express as px
 
 # Import utilities from the new, redesigned project structure
-from 6s.data.session_state_manager import SessionStateManager
-from 6s.utils.plotting import create_control_chart, create_histogram_with_specs
-from 6s.utils.stats import calculate_process_capability
+from six_sigma.data.session_state_manager import SessionStateManager
+from six_sigma.utils.plotting import create_control_chart, create_histogram_with_specs
+from six_sigma.utils.stats import calculate_process_capability
 
 logger = logging.getLogger(__name__)
 
