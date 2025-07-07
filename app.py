@@ -9,18 +9,14 @@ for identifying and quantifying opportunities (COPQ, FTY) and for advanced
 statistical analysis.
 
 SME Overhaul:
-- The entire application architecture is now centered on the DMAIC workflow.
-- A professional sidebar navigation is used instead of tabs.
-- Imports are updated to reflect new, dedicated modules for FTY, COPQ, and advanced tools.
-- Branding and titles are elevated to reflect an expert-level, MBB-focused toolkit.
+- Complete re-architecture for a commercial-grade, professional feel.
+- A sophisticated sidebar navigation organizes the platform into logical workspaces.
+- All modules, including new ones for ML, are fully integrated.
 """
 
-# --- Standard Library Imports ---
 import logging
 import os
 import sys
-
-# --- Third-party Imports ---
 import streamlit as st
 
 # --- Robust Path Correction Block ---
@@ -36,11 +32,14 @@ except Exception as e:
 # --- Local Application Imports ---
 try:
     from six_sigma.data.session_state_manager import SessionStateManager
-    from six_sigma.dashboards.dmaic_toolkit import render_dmaic_toolkit
+    from six_sigma.dashboards.global_operations_dashboard import render_global_dashboard
+    from six_sigma.dashboards.project_pipeline import render_project_pipeline
     from six_sigma.dashboards.copq_dashboard import render_copq_dashboard
     from six_sigma.dashboards.fty_dashboard import render_fty_dashboard
+    from six_sigma.dashboards.dmaic_toolkit import render_dmaic_toolkit
     from six_sigma.dashboards.advanced_tools_suite import render_advanced_tools_suite
-    from six_sigma.dashboards.project_pipeline import render_project_pipeline
+    from six_sigma.dashboards.ml_analytics_lab import render_ml_analytics_lab
+    from six_sigma.dashboards.kaizen_training_hub import render_kaizen_training_hub
 except ImportError as e:
     st.error(f"Fatal Error: A required module could not be imported: {e}. "
              "Please ensure the project structure is correct and all "
@@ -60,13 +59,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # ==============================================================================
-# --- MAIN APPLICATION LOGIC ---
+# --- Main Application Logic ---
 # ==============================================================================
 
 def main() -> None:
     """Main function to initialize the Session State and render the Streamlit app."""
-    st.title("📈 Six Sigma DMAIC Command Center")
-    st.caption("A Master Black Belt's Toolkit for Data-Driven Process Improvement")
+    st.set_option('deprecation.showPyplotGlobalUse', False) # Suppress Pyplot global use warning for SHAP plots
+    
+    st.title("📈 Six Sigma Command Center")
+    st.caption("A Commercial-Grade Platform for Data-Driven Process Excellence")
 
     try:
         ssm = SessionStateManager()
@@ -76,34 +77,57 @@ def main() -> None:
         logger.critical(f"Failed to instantiate SessionStateManager: {e}", exc_info=True)
         st.stop()
 
-    # --- Sidebar for Navigation ---
-    st.sidebar.title("Navigation")
+    # --- Sidebar Navigation ---
+    st.sidebar.title("Workspaces")
+    
+    st.sidebar.markdown("### Strategic Dashboards")
+    strategic_choice = st.sidebar.radio("Overview & Planning:", 
+                                        ["Global Operations", "Improvement Pipeline"], label_visibility="collapsed")
+
+    st.sidebar.markdown("### Analytical Workbenches")
+    analytical_choice = st.sidebar.radio("Analysis & Execution:", 
+                                         ["DMAIC Project Toolkit", "First Time Yield (FTY)", "Cost of Poor Quality (COPQ)"], label_visibility="collapsed")
+
+    st.sidebar.markdown("### Advanced & Support Tools")
+    advanced_choice = st.sidebar.radio("Specialized Tools & Resources:", 
+                                       ["Advanced Statistical Tools", "ML & Analytics Lab", "Kaizen & Training Hub"], label_visibility="collapsed")
+
+    # This logic block ensures only one "active" choice across all radio button groups
+    # For simplicity, we can just use a single radio button with headers.
+    st.sidebar.empty() # Clear the previous radio buttons
+    st.sidebar.title("Workspaces")
     app_mode = st.sidebar.radio(
-        "Select a Workspace",
+        "Navigation",
         [
-            "DMAIC Project Workspace",
-            "Improvement Project Pipeline",
-            "First Time Yield (FTY) Analysis",
-            "Cost of Poor Quality (COPQ) Analysis",
-            "Advanced Statistical Tools"
+            "Global Operations",
+            "Improvement Pipeline",
+            "DMAIC Project Toolkit",
+            "First Time Yield (FTY)",
+            "Cost of Poor Quality (COPQ)",
+            "Advanced Statistical Tools",
+            "ML & Analytics Lab",
+            "Kaizen & Training Hub"
         ],
-        help="Select a workspace. The DMAIC Toolkit is the primary module for executing projects."
+        index=2 # Default to the DMAIC toolkit
     )
-    st.sidebar.markdown("---")
-    st.sidebar.info("This application is a dedicated workspace for executing and managing Six Sigma improvement projects.")
 
     # --- Main Panel Rendering ---
-    if app_mode == "DMAIC Project Workspace":
-        render_dmaic_toolkit(ssm)
-    elif app_mode == "Improvement Project Pipeline":
+    if app_mode == "Global Operations":
+        render_global_dashboard(ssm)
+    elif app_mode == "Improvement Pipeline":
         render_project_pipeline(ssm)
-    elif app_mode == "First Time Yield (FTY) Analysis":
+    elif app_mode == "First Time Yield (FTY)":
         render_fty_dashboard(ssm)
-    elif app_mode == "Cost of Poor Quality (COPQ) Analysis":
+    elif app_mode == "Cost of Poor Quality (COPQ)":
         render_copq_dashboard(ssm)
+    elif app_mode == "DMAIC Project Toolkit":
+        render_dmaic_toolkit(ssm)
     elif app_mode == "Advanced Statistical Tools":
         render_advanced_tools_suite(ssm)
-
+    elif app_mode == "ML & Analytics Lab":
+        render_ml_analytics_lab(ssm)
+    elif app_mode == "Kaizen & Training Hub":
+        render_kaizen_training_hub(ssm)
 
 # ==============================================================================
 # --- SCRIPT EXECUTION ---
