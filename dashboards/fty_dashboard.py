@@ -6,6 +6,12 @@ This module provides a deep-dive analysis into process yields. It calculates
 both the FTY for individual steps and the cumulative RTY for the entire process,
 allowing an MBB to precisely identify process bottlenecks and quantify the
 "hidden factory" of rework and scrap.
+
+SME Overhaul:
+- Calculates both FTY and RTY.
+- Adds Sigma Level calculation based on RTY.
+- Implements a sophisticated Waterfall chart to show cumulative yield loss.
+- Includes clear explanations of the methodologies for all user levels.
 """
 
 import logging
@@ -13,20 +19,26 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+from scipy.stats import norm
 
 from six_sigma.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
 def render_fty_dashboard(ssm: SessionStateManager) -> None:
-    """
-    Creates the UI for the FTY/RTY Analysis dashboard.
-
-    Args:
-        ssm (SessionStateManager): The session state manager to access yield data.
-    """
+    """Creates the UI for the FTY/RTY Analysis dashboard."""
     st.header("✅ First Time Yield (FTY) & RTY Analysis")
     st.markdown("Analyze process efficiency by calculating First Time Yield for each step and the overall Rolled Throughput Yield (RTY) for the entire value stream. Use these insights to identify your primary process bottlenecks.")
+
+    with st.expander("Learn More: Understanding FTY, RTY, and Sigma Level"):
+        st.markdown("""
+        - **First Time Yield (FTY):** The percentage of units that pass a *single process step* correctly the first time, without needing any rework or scrap. It measures the efficiency of an individual step.
+          > _Formula: `FTY = Units Out / Units In`_
+        - **Rolled Throughput Yield (RTY):** The probability that a unit will pass through the *entire process* (all steps) without a single defect or rework event. It exposes the "hidden factory" of cumulative losses.
+          > _Formula: `RTY = FTY₁ * FTY₂ * ... * FTYₙ`_
+        - **Sigma Level (σ):** A standardized measure of process capability, converted from the overall RTY. A higher Sigma Level indicates a more capable, less defective process. A 6σ process has a near-perfect RTY.
+          > _Formula: `Sigma Level = 1.5 + Z-score(RTY)` (The 1.5 shift accounts for long-term process drift)_
+        """)
 
     try:
         # --- 1. Load and Prepare Data ---
@@ -46,23 +58,20 @@ def render_fty_dashboard(ssm: SessionStateManager) -> None:
         filtered_df = df[df['site'] == selected_site]
         
         # --- 3. Calculate FTY and RTY ---
-        # Aggregate data over the entire period for selected site
         step_summary = filtered_df.groupby('step_name').agg(
             total_in=('units_in', 'sum'),
             total_out=('units_out', 'sum')
         ).reset_index()
         step_summary['fty'] = step_summary['total_out'] / step_summary['total_in']
         
-        # Ensure correct order for RTY calculation
         process_step_order = ["Component Kitting", "Sub-Assembly", "Main Assembly", "Final QC Test"]
         step_summary['step_name'] = pd.Categorical(step_summary['step_name'], categories=process_step_order, ordered=True)
         step_summary.sort_values('step_name', inplace=True)
         
-        # Calculate Rolled Throughput Yield
         step_summary['rty'] = step_summary['fty'].cumprod()
         
         overall_rty = step_summary['rty'].iloc[-1] if not step_summary.empty else 0
-        sigma_level = 4.5 + stats.norm.ppf(overall_rty) if overall_rty > 0 else 0
+        sigma_level = 1.5 + norm.ppf(overall_rty) if 0 < overall_rty < 1 else 0
 
         st.divider()
 
@@ -82,86 +91,51 @@ def render_fty_dashboard(ssm: SessionStateManager) -> None:
         
         viz_cols = st.columns(2)
         with viz_cols[0]:
-            # --- FTY Bar Chart ---
             st.markdown("**First Time Yield (FTY) by Process Step**")
             fig_fty = px.bar(step_summary, x='step_name', y='fty',
                              text=step_summary['fty'].apply(lambda x: f'{x:.2%}'),
                              title="Which step is the least efficient?")
-            fig_fty.update_layout(yaxis=dict(range=[0.8, 1.0], tickformat=".1%"),
-                                  xaxis_title="Process Step", yaxis_title="First Time Yield",
+            fig_fty.update_layout(yaxis=dict(range=[max(0.8, step_summary['fty'].min() - 0.02), 1.0], tickformat=".1%"),
+                                  xaxis_title=None, yaxis_title="First Time Yield",
                                   height=450, margin=dict(t=50, b=10))
             fig_fty.update_traces(marker_color='#1f77b4')
             st.plotly_chart(fig_fty, use_container_width=True)
 
         with viz_cols[1]:
-            # --- RTY Waterfall Chart ---
             st.markdown("**Rolled Throughput Yield (RTY) Waterfall**")
-            initial_yield = 1.0
-            waterfall_data = []
-            for i, row in step_summary.iterrows():
-                yield_loss = initial_yield * (1 - row['fty'])
-                waterfall_data.append(go.Waterfall(
-                    name=row['step_name'], orientation="v",
-                    measure=["relative"] * len(step_summary),
-                    x=[step_summary['step_name']], y=[step_summary.apply(lambda r: r['fty']-1, axis=1)],
-                    text=[f"{(row['fty']-1):.2%}" for i, row in step_summary.iterrows()],
-                    connector={"line":{"color":"rgb(63, 63, 63)"}}
-                ))
-
-            fig_waterfall = go.Figure(go.Waterfall(
-                name="Yield", orientation="v",
-                x=step_summary['step_name'],
-                text=[f"{(row['fty']):.2%}" for i, row in step_summary.iterrows()],
-                y=step_summary['fty']-1, # Represent loss
-                connector={"line": {"color": "rgb(63, 63, 63)"}},
-                decreasing={"marker":{"color":"#d62728"}},
-            ))
-            fig_waterfall.add_trace(go.Waterfall(
-                orientation="v",
-                measure=["total"] * (len(step_summary) + 1),
-                x=["Start"] + list(step_summary['step_name']),
-                y=[1] + list(step_summary['rty'] - step_summary['rty'].shift(1).fillna(0)-1),
-                text=[f"{y:.2%}" for y in [1] + list(step_summary['rty'])]
-            ))
-
-
-            waterfall_steps = [
-                go.layout.updatemenu.Button(
-                    args=["visible", [True, False, False, False]],
-                    label="Kitting", method="restyle"
-                ),
-                go.layout.updatemenu.Button(
-                    args=["visible", [False, True, False, False]],
-                    label="Sub-Assembly", method="restyle"
-                ),
-            ]
-            
             fig_waterfall = go.Figure()
-            initial_val = 1.0
+            last_val = 1.0
+            
+            # Initial bar starting at 100%
             fig_waterfall.add_trace(go.Waterfall(
-                x=["Start"], y=[initial_val], measure=["absolute"],
-                text=[f"{initial_val:.1%}"]
+                name="Start", x=["Process Start"], measure=["absolute"],
+                base=0, y=[1], text=["100%"],
+                decreasing={"marker":{"color":"#1f77b4"}} # Use a neutral color
             ))
             
-            last_val = initial_val
             for _, row in step_summary.iterrows():
+                yield_loss = last_val * (1 - row['fty'])
                 fig_waterfall.add_trace(go.Waterfall(
-                    x=[row['step_name']], y=[row['fty']*last_val - last_val],
-                    measure=['relative'], text=[f"{(row['fty']*last_val - last_val):.2%}"]
+                    name=row['step_name'], x=[row['step_name']],
+                    base=last_val - yield_loss, y=[-yield_loss], measure=['relative'],
+                    text=[f"{-yield_loss:.2%}"],
+                    decreasing={"marker":{"color":"#d62728"}}
                 ))
-                last_val *= row['fty']
-            
+                last_val -= yield_loss
+
             fig_waterfall.add_trace(go.Waterfall(
-                x=["Final RTY"], y=[last_val], measure=['total'],
-                text=[f"{last_val:.2%}"]
+                name="Final RTY", x=["Final RTY"], measure=["total"],
+                base=0, y=[last_val],
+                text=[f"{last_val:.2%}"],
+                totals={"marker":{"color":"#2ca02c"}}
             ))
             
             fig_waterfall.update_layout(
-                title="How Yield Loss Accumulates (Waterfall)",
-                waterfallgap=0.3,
-                height=450, margin=dict(t=50, b=10)
+                title="How Yield Loss Accumulates",
+                waterfallgap=0.2, showlegend=False,
+                height=450, margin=dict(t=50, b=10),
+                yaxis_tickformat='.0%'
             )
-
             st.plotly_chart(fig_waterfall, use_container_width=True)
 
     except Exception as e:
