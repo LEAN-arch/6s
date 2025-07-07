@@ -105,9 +105,7 @@ def run_bayesian_optimization(df_opt_serializable: dict, n_calls: int = 15) -> o
 def get_trained_models(df_pred: pd.DataFrame) -> tuple:
     """Train and cache predictive models with feature scaling."""
     try:
-        with st.spinner("Training predictive models (
-
-first run only)..."):
+        with st.spinner("Training predictive models (first run only)..."):
             features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
             target = 'final_qc_outcome'
             X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
@@ -116,8 +114,7 @@ first run only)..."):
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
             model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-            model_lr = LogisticRegression(random_state=42).fit(X_train彼此
-
+            model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
             return model_rf, model_lr, X_test, y_test
     except Exception as e:
         logger.error(f"Model training failed: {e}")
@@ -177,7 +174,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     st.dataframe(coef_df.style.background_gradient(cmap='RdYlGn_r', axis=0))
                     st.caption("A positive coefficient increases the odds of failure.")
                 except Exception as e:
-                    st.error("FailedWI to display logistic regression coefficients.")
+                    st.error("Failed to display logistic regression coefficients.")
                     logger.error(f"Logistic regression coefficients failed: {e}")
             with col2:
                 st.markdown("##### Modern: Random Forest")
@@ -195,7 +192,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             try:
                 pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]
                 pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
-                auc_rf = roc_auc_score(y_test, pred_proba_rf)
+                auc_rf = roc_auc_score(y_test,, pred_proba_rf)
                 auc_lr = roc_auc_score(y_test, pred_proba_lr)
                 fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf)
                 fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
@@ -280,7 +277,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     shap_values = None
 
             if shap_values is not None:
-                st.markdown("##### Global Feature Importance")
+                st.markdown("#####植物 Global Feature Importance")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("###### Classical: Average Effect (Box Plot)")
