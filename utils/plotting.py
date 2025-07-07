@@ -6,16 +6,10 @@ This module contains helper functions that generate various Plotly figures
 used throughout the Six Sigma Command Center. It has been overhauled to
 produce sophisticated, publication-quality visualizations for Gage R&R,
 DOE, and other advanced statistical methods.
-
-SME Overhaul:
-- Added `create_gage_rr_plots` for detailed MSA visualization.
-- Added `create_doe_plots` for Main Effects, Interaction, and 3D Surface plots.
-- Enhanced `create_control_chart` and `create_histogram_with_specs`.
-- Centralized plotting logic to keep dashboard files clean.
 """
 
 import logging
-from typing import Tuple  # <--- FIX: Added missing import
+from typing import Tuple, List # <--- FIX: Added missing import
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -88,8 +82,6 @@ def create_gage_rr_plots(df: pd.DataFrame) -> Tuple[go.Figure, go.Figure]:
 
 def create_doe_plots(df: pd.DataFrame, factors: List[str], response: str) -> Tuple[go.Figure, go.Figure, go.Figure]:
     """Creates Main Effects, Interaction, and 3D Surface plots for a DOE."""
-    from typing import List # <--- FIX: Added local import
-    
     main_effects_fig = make_subplots(rows=1, cols=len(factors), subplot_titles=[f.title() for f in factors])
     for i, factor in enumerate(factors):
         effect_data = df.groupby(factor)[response].mean().reset_index()
