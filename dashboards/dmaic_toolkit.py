@@ -13,14 +13,13 @@ SME Masterclass Overhaul:
   a project now loads a dataset SPECIFIC to that project's problem.
 - **Massively Extended:** Each DMAIC phase now includes an expandable 'Tollgate
   Documents' section, providing detailed, realistic examples and SME explanations
-  for a comprehensive suite of Six Sigma tools.
+  for a comprehensive suite of Six Sigma tools (e.g., VOC/Kano, FMEA, Pugh Matrix).
 - **Visually Rich & Robust:** All tollgate documents are enhanced with professional
   visualizations and wrapped in individual try-except blocks for graceful degradation.
 - **Embedded Coach Design:** Every phase, tool, and result is now accompanied
   by detailed SME explanations, turning the toolkit into a comprehensive learning
   and execution platform.
 """
-
 import logging
 import pandas as pd
 import streamlit as st
@@ -55,9 +54,12 @@ def _render_fishbone_diagram(effect: str):
                 subgraph { rank = same; "Machine"; "Method"; "Material"; }
                 subgraph { rank = same; "Manpower"; "Measurement"; "Environment"; }
 
-                "Machine" -> "Effect" [arrowhead=none]; "Method" -> "Effect" [arrowhead=none];
-                "Material" -> "Effect" [arrowhead=none]; "Manpower" -> "Effect" [arrowhead=none];
-                "Measurement" -> "Effect" [arrowhead=none]; "Environment" -> "Effect" [arrowhead=none];
+                "Machine" -> "Effect" [arrowhead=none];
+                "Method" -> "Effect" [arrowhead=none];
+                "Material" -> "Effect" [arrowhead=none];
+                "Manpower" -> "Effect" [arrowhead=none];
+                "Measurement" -> "Effect" [arrowhead=none];
+                "Environment" -> "Effect" [arrowhead=none];
                 
                 node [shape=box, style=rounded, bgcolor="#f0f2f6"];
                 Effect [label="'''+effect+'''", shape=box, style="filled", fillcolor="#ffcccb"];
@@ -246,7 +248,22 @@ def _render_improve_phase(ssm: SessionStateManager) -> None:
     st.markdown("#### Design of Experiments (DOE) for Process Optimization")
     st.caption("DOE is the most powerful tool in the Improve phase. It allows us to efficiently test multiple factors at once to find the optimal 'recipe' for our process.")
     with st.expander("##### 🎓 SME Masterclass: The DOE Journey from Screening to Optimization"):
-        st.markdown("""... (Full explanation from previous version is preserved) ...""")
+        st.markdown("""
+        A Design of Experiments is not a single analysis, but a journey. It typically follows two major steps:
+
+        **Step 1: Screening Experiment (Identifying the 'Vital Few')**
+        *   **Goal:** When you have many potential factors (e.g., 5-10 inputs), you need to efficiently identify which ones actually matter.
+        *   **Tools:** You use a *Factorial* or *Fractional Factorial* design.
+        *   **Key Visuals:**
+            *   **Main Effects Plot:** This is your first look. It shows the average effect of changing each factor from its low to high level. A steep line means the factor is a "big hitter."
+            *   **Interaction Plot:** This is crucial. It checks if factors are independent. Non-parallel lines signal an interaction, meaning the effect of one factor depends on the level of another (e.g., "baking time only matters at high temperatures").
+
+        **Step 2: Optimization (Finding the 'Best Recipe')**
+        *   **Goal:** Once you've screened down to the 2-3 most important factors, you need to find their exact optimal settings.
+        *   **Tools:** You use a *Response Surface Methodology (RSM)* design, which often adds center points and axial points to your original design to allow for modeling curvature.
+        *   **Key Visual:**
+            *   **Contour Plot:** This is the "topographical map" of your process. It shows lines of constant response (e.g., lines of 95% yield). By looking at the plot, you can visually identify the "peak of the mountain"—the combination of settings that gives the optimal result. It's often more practical for finding settings than a 3D surface plot.
+        """)
     try:
         doe_data = ssm.get_data("doe_data")
         if doe_data is None or doe_data.empty: st.warning("No DOE data available.")
