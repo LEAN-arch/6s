@@ -192,7 +192,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             try:
                 pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]
                 pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
-                auc_rf = roc_auc_score(y_test,, pred_proba_rf)
+                auc_rf = roc_auc_score(y_test, pred_proba_rf)
                 auc_lr = roc_auc_score(y_test, pred_proba_lr)
                 fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf)
                 fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
@@ -277,7 +277,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     shap_values = None
 
             if shap_values is not None:
-                st.markdown("#####植物 Global Feature Importance")
+                st.markdown("##### Global Feature Importance")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("###### Classical: Average Effect (Box Plot)")
