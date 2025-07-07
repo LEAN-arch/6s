@@ -11,7 +11,6 @@ import logging
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
 from scipy.stats import norm
 
 from six_sigma.data.session_state_manager import SessionStateManager
@@ -19,6 +18,46 @@ from six_sigma.utils.plotting import create_control_chart, create_histogram_with
 from six_sigma.utils.stats import calculate_process_capability, perform_t_test, perform_anova, calculate_gage_rr
 
 logger = logging.getLogger(__name__)
+
+# <--- FIX: New function to dynamically generate a Fishbone Diagram --->
+def render_fishbone_diagram(effect: str):
+    """
+    Renders a Fishbone (Ishikawa) diagram using Streamlit columns and markdown.
+    
+    Args:
+        effect (str): The problem statement or effect to place at the head of the fish.
+    """
+    st.markdown("##### Fishbone (Ishikawa) Diagram")
+    
+    # Define potential causes for each category
+    causes = {
+        "Measurement": ["Gage not calibrated", "Incorrect test procedure", "Subjective visual inspection"],
+        "Material": ["Inconsistent raw material", "Supplier quality issues", "Improper storage"],
+        "Personnel": ["Inadequate training", "High operator fatigue", "SOP not followed"],
+        "Environment": ["Poor lighting", "Temperature fluctuations", "ESD contamination"],
+        "Machine": ["Fixture wear & tear", "Incorrect machine settings", "Lack of preventative maintenance"],
+        "Method": ["Outdated SOP", "Inefficient assembly sequence", "Poor handling instructions"]
+    }
+    
+    # Main spine of the fish
+    st.markdown("<hr>", unsafe_allow_html=True)
+
+    # Use columns to represent the main bones of the fish
+    cols = st.columns(6)
+    categories = list(causes.keys())
+
+    for i, col in enumerate(cols):
+        with col:
+            # Main bone title
+            st.markdown(f"**{categories[i]}**")
+            # Smaller bones (potential causes)
+            for cause in causes[categories[i]]:
+                st.markdown(f"- {cause}")
+
+    # Head of the fish
+    st.info(f"**Effect:** {effect}")
+# <--- End of Fix --->
+
 
 def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     """Creates the UI for the DMAIC Improvement Toolkit workspace."""
@@ -70,12 +109,10 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     "Customers": ["Main Assembly Line", "Final Product"]
                 }
                 
-                # <--- FIX: Changed from a failing DataFrame to an iterative display --->
                 for category, items in sipoc_data.items():
                     st.markdown(f"**{category}:**")
                     for item in items:
                         st.markdown(f"- {item}")
-                # <--- End of Fix --->
 
         # --- MEASURE PHASE ---
         with phase_tabs[1]:
@@ -106,17 +143,20 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             
             gage_data = ssm.get_data("gage_rr_data")
             results_df, fig1, fig2 = calculate_gage_rr(gage_data)
-            total_grr = results_df.loc['Total Gage R&R', '% Contribution']
             
-            grr_cols = st.columns([1, 2])
-            with grr_cols[0]:
-                st.dataframe(results_df.style.format({'% Contribution': '{:.2f}%'}).background_gradient(cmap='Reds', subset=['% Contribution']))
-                if total_grr < 10: st.success(f"**Conclusion:** Measurement System is **Acceptable** ({total_grr:.2f}%).")
-                elif total_grr < 30: st.warning(f"**Conclusion:** Measurement System is **Marginal** ({total_grr:.2f}%).")
-                else: st.error(f"**Conclusion:** Measurement System is **Unacceptable** ({total_grr:.2f}%).")
-            with grr_cols[1]:
-                st.plotly_chart(fig1, use_container_width=True)
-                st.plotly_chart(fig2, use_container_width=True)
+            if not results_df.empty:
+                total_grr = results_df.loc['Total Gage R&R', '% Contribution']
+                grr_cols = st.columns([1, 2])
+                with grr_cols[0]:
+                    st.dataframe(results_df.style.format({'% Contribution': '{:.2f}%'}).background_gradient(cmap='Reds', subset=['% Contribution']))
+                    if total_grr < 10: st.success(f"**Conclusion:** Measurement System is **Acceptable** ({total_grr:.2f}%).")
+                    elif total_grr < 30: st.warning(f"**Conclusion:** Measurement System is **Marginal** ({total_grr:.2f}%).")
+                    else: st.error(f"**Conclusion:** Measurement System is **Unacceptable** ({total_grr:.2f}%).")
+                with grr_cols[1]:
+                    st.plotly_chart(fig1, use_container_width=True)
+                    st.plotly_chart(fig2, use_container_width=True)
+            else:
+                st.error("Gage R&R analysis failed. Please check data and logs.")
                 
         # --- ANALYZE PHASE (RCA) ---
         with phase_tabs[2]:
@@ -137,8 +177,9 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 st.text_input("5. Why was it not updated?", "Process oversight during design transfer.", key=f"why5_{project['id']}")
 
             with rca_cols[1]:
-                st.info("**Fishbone Diagram Generator**")
-                st.image("./assets/fishbone_diagram.png", caption="Example Fishbone Diagram identifying potential causes.")
+                # <--- FIX: Replaced st.image with call to the new dynamic function --->
+                render_fishbone_diagram(effect=project['problem_statement'])
+                # <--- End of Fix --->
 
             st.markdown("---")
             st.markdown("##### Hypothesis Testing Suite")
