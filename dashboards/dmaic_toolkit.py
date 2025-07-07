@@ -24,7 +24,7 @@ import logging
 import pandas as pd
 import streamlit as st
 import numpy as np
-from scipy.stats import norm
+import plotly.express as px
 
 from six_sigma.data.session_state_manager import SessionStateManager
 from six_sigma.utils.plotting import create_imr_chart, create_histogram_with_specs, create_doe_plots, create_gage_rr_plots
@@ -134,7 +134,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                  st.markdown("""
                 Before you can analyze or improve a process, you **must** trust your data. A Gage R&R study tells you if your measurement system is reliable. It separates the variation from the measurement system itself from the actual variation in the parts.
                 - **% Contribution < 10%:** Excellent. The measurement system is acceptable.
-                - **% Contribution > 30%:** Unacceptable. The measurement system is contributing too much noise. You must fix the measurement system before proceeding.
+                - **% Contribution > 30%:** Unacceptable. The measurement system is creating too much noise. You must fix the measurement system before proceeding.
                 """)
             
             gage_data = ssm.get_data("gage_rr_data")
@@ -180,18 +180,29 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             
             if test_type == "2-Sample t-Test (Before vs. After)":
                 st.markdown("###### Is there a significant difference between the 'Before' and 'After' process change?")
-                fig, result = perform_t_test(ht_data['before_change'], ht_data['after_change'])
-                st.plotly_chart(px.box(pd.melt(ht_data[['before_change', 'after_change']]), x='variable', y='value', color='variable'), use_container_width=True)
-                if result.get('reject_null'): st.success(f"**Conclusion:** The difference is **statistically significant** (p = {result['p_value']:.4f}). We reject the null hypothesis.")
-                else: st.warning(f"**Conclusion:** The difference is **not statistically significant** (p = {result['p_value']:.4f}). We fail to reject the null hypothesis.")
+                # *** FIX: Call the new, correct function from stats.py ***
+                result = perform_hypothesis_test(ht_data['before_change'], ht_data['after_change'])
+                df_plot = pd.melt(ht_data[['before_change', 'after_change']], var_name='Group', value_name='Value')
+                st.plotly_chart(px.box(df_plot, x='Group', y='Value', color='Group'), use_container_width=True)
+                
+                # *** FIX: Unpack the results dictionary correctly ***
+                if result.get('reject_null'): 
+                    st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}). We reject the null hypothesis.")
+                else: 
+                    st.warning(f"**Conclusion:** The difference is not statistically significant (p = {result.get('p_value', 0):.4f}). We fail to reject the null hypothesis.")
             
             elif test_type == "ANOVA (Supplier A vs. B vs. C)":
                 st.markdown("###### Is there a significant difference in component strength between Suppliers A, B, and C?")
                 df_anova = pd.melt(ht_data[['supplier_a', 'supplier_b', 'supplier_c']], var_name='group', value_name='value')
-                fig, result = perform_anova_on_dataframe(df_anova, 'value', 'group')
+                # *** FIX: Call the correct function ***
+                result = perform_anova_on_dataframe(df_anova, 'value', 'group')
                 st.plotly_chart(px.box(df_anova, x='group', y='value', color='group'), use_container_width=True)
-                if result.get('reject_null'): st.success(f"**Conclusion:** There is a **statistically significant difference** between at least two suppliers (p = {result['p_value']:.4f}).")
-                else: st.warning(f"**Conclusion:** There is **no statistically significant difference** between suppliers (p = {result['p_value']:.4f}).")
+
+                # *** FIX: Unpack the results dictionary correctly ***
+                if result.get('reject_null'): 
+                    st.success(f"**Conclusion:** There is a statistically significant difference between the suppliers (p = {result.get('p_value', 0):.4f}).")
+                else: 
+                    st.warning(f"**Conclusion:** There is no significant difference between the suppliers (p = {result.get('p_value', 0):.4f}).")
         
         # ==================== IMPROVE PHASE ====================
         with phase_tabs[3]:
