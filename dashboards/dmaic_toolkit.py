@@ -19,6 +19,7 @@ SME Masterclass Overhaul:
   transforming the toolkit into a world-class educational resource.
 - The Control phase shows a direct "before and after" comparison, visualizing
   the simulated success of the project against the initial baseline.
+, encoding='utf-8'
 """
 
 import logging
@@ -80,6 +81,13 @@ def _render_fishbone_diagram(effect: str):
         "Method": ["Outdated SOP", "Inefficient assembly sequence"]
     }
     try:
+        # Pre-process labels to escape quotes
+        escaped_effect = effect.replace('"', '\\"')
+        sub_labels = [
+            f"{cat}_sub{i} [label=\"{sub.replace('\"', '\\\"')}\", shape=ellipse, fillcolor=lightyellow] -> {cat}"
+            for cat, subs in causes.items()
+            for i, sub in enumerate(subs)
+        ]
         dot = r'''
         digraph {
             rankdir=LR;
@@ -90,10 +98,10 @@ def _render_fishbone_diagram(effect: str):
             %s;
         }
         ''' % (
-            effect.replace('"', '\\"'),
+            escaped_effect,
             "; ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()]),
             "; ".join([f"{cat} -> Effect" for cat in causes.keys()]),
-            "; ".join([f"{cat}_sub{i} [label=\"{sub.replace('\"', '\\\"')}\", shape=ellipse, fillcolor=lightyellow] -> {cat}" for cat, subs in causes.items() for i, sub in enumerate(subs)])
+            "; ".join(sub_labels)
         )
         st.graphviz_chart(dot)
     except Exception as e:
@@ -164,11 +172,11 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                             digraph {
                                 rankdir=LR;
                                 node [shape=box, style=rounded];
-                                Suppliers [label="Suppliers\n- Component Vendors\n- Sub-Assembly Line"];
-                                Inputs [label="Inputs\n- Capacitors, PCBs\n- Housing, Screws"];
-                                Process [label="Process Steps\n1. Inspect\n2. Assemble\n3. Solder\n4. Test"];
-                                Outputs [label="Outputs\n- Functional Module"];
-                                Customers [label="Customers\n- Main Assembly Line\n- Final Product"];
+                                Suppliers [label="Suppliers\\n- Component Vendors\\n- Sub-Assembly Line"];
+                                Inputs [label="Inputs\\n- Capacitors, PCBs\\n- Housing, Screws"];
+                                Process [label="Process Steps\\n1. Inspect\\n2. Assemble\\n3. Solder\\n4. Test"];
+                                Outputs [label="Outputs\\n- Functional Module"];
+                                Customers [label="Customers\\n- Main Assembly Line\\n- Final Product"];
                                 Suppliers -> Inputs -> Process -> Outputs -> Customers;
                             }
                         ''')
@@ -511,6 +519,10 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     except Exception as e:
         st.error(f"An error occurred while rendering the DMAIC Toolkit: {e}")
         logger.error(f"Failed to render DMAIC toolkit: {e}", exc_info=True)
+
+if __name__ == "__main__":
+    ssm = SessionStateManager()  # Assumed to be defined elsewhere
+    render_dmaic_toolkit(ssm)
 
 if __name__ == "__main__":
     ssm = SessionStateManager()  # Assumed to be defined elsewhere
