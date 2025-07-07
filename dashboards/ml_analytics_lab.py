@@ -66,6 +66,11 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                 st.error(f"Column {col} in {dataset} must be numeric.")
                 logger.error(f"Non-numeric data in {col} for {dataset}.")
                 return False
+        # Additional check for predictive_quality_data size
+        if dataset == "predictive_quality_data" and len(df) < 10:
+            st.error(f"{dataset} has too few samples ({len(df)}). At least 10 samples are required for analysis.")
+            logger.error(f"{dataset} has insufficient samples: {len(df)}")
+            return False
     return True
 
 def st_shap(plot, height: int = None) -> None:
@@ -119,7 +124,11 @@ def get_trained_models(df_pred: pd.DataFrame) -> tuple:
             features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
             target = 'final_qc_outcome'
             X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+            # Adjust test_size if dataset is small
+            test_size = 0.3 if len(X) >= 50 else 0.2
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, stratify=y)
+            if len(X_test) == 0:
+                raise ValueError("Test set is empty after train-test split.")
             scaler = StandardScaler().fit(X_train)
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
@@ -275,19 +284,24 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
                     target = 'final_qc_outcome'
                     X_local, y_local = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+                    # Adjust test_size for small datasets
+                    test_size = 0.3 if len(X_local) >= 50 else 0.2
                     X_train_local, X_test_local, y_train_local, _ = train_test_split(
-                        X_local, y_local, test_size=0.3, random_state=42, stratify=y_local
+                        X_local, y_local, test_size=test_size, random_state=42, stratify=y_local
                     )
-                    if len(X_test_local) == 0:
-                        raise ValueError("Test set is empty after train-test split.")
-                    model_rf_local = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train_local, y_train_local)
+                    if len(X_test_local) < 5:
+                        raise ValueError(f"Test set too small ({len(X_test_local)} samples). At least 5 samples required for SHAP analysis.")
+                    # Convert to NumPy array to ensure consistency
+                    X_train_local_np = X_train_local.to_numpy()
+                    X_test_local_np = X_test_local.to_numpy()
+                    model_rf_local = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train_local_np, y_train_local)
                     explainer = shap.TreeExplainer(model_rf_local, feature_names=features)
-                    # Use min to avoid slicing issues if X_test_local has fewer than 100 samples
-                    n_samples = min(len(X_test_local), 100)
-                    shap_values = explainer.shap_values(X_test_local[:n_samples])
-                    logger.info(f"SHAP values shape: {np.array(shap_values).shape}, X_test_local shape: {X_test_local[:n_samples].shape}")
+                    # Use min to avoid slicing issues
+                    n_samples = min(len(X_test_local_np), 100)
+                    shap_values = explainer.shap_values(X_test_local_np[:n_samples])
+                    logger.info(f"SHAP values shape: {np.array(shap_values).shape}, X_test_local shape: {X_test_local_np[:n_samples].shape}, Features: {features}")
                 except Exception as e:
-                    st.error("Failed to compute SHAP values.")
+                    st.error("Failed to compute SHAP values. This may be due to insufficient data or incompatible feature formats.")
                     logger.error(f"SHAP computation failed: {e}")
                     shap_values = None
 
@@ -306,7 +320,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     st.markdown("###### Modern: Global Explanation (SHAP Summary)")
                     try:
                         fig, ax = plt.subplots()
-                        shap.summary_plot(shap_values[1], X_test_local[:n_samples], feature_names=features, plot_type="dot", show=False)
+                        shap.summary_plot(shap_values[1], X_test_local_np[:n_samples], feature_names=features, plot_type="dot", show=False)
                         st.pyplot(fig, bbox_inches='tight')
                         plt.close(fig)
                     except Exception as e:
@@ -316,16 +330,16 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 st.markdown("<hr>", unsafe_allow_html=True)
                 st.markdown("##### Local (Single Prediction) Explanation")
                 st.info("Select a specific unit from the test set to see exactly why the Random Forest model predicted it would fail or pass.")
-                if len(X_test_local) == 0:
+                if len(X_test_local_np) == 0:
                     st.error("No test instances available for SHAP analysis.")
                     logger.error("X_test_local is empty.")
                 else:
-                    instance_idx = st.slider("Select a Test Instance to Explain", 0, min(len(X_test_local)-1, 99), 0)
+                    instance_idx = st.slider("Select a Test Instance to Explain", 0, min(len(X_test_local_np)-1, 99), 0)
                     try:
                         st_shap(shap.force_plot(
                             explainer.expected_value[1],
                             shap_values[1][instance_idx, :],
-                            X_test_local.iloc[instance_idx, :],
+                            X_test_local_np[instance_idx, :],
                             feature_names=features,
                             link="logit"
                         ))
