@@ -1,4 +1,4 @@
-# philips_quality_optimizer/dashboards/dmaic_toolkit.py
+# 6s/dashboards/dmaic_toolkit.py
 """
 Renders the DMAIC Improvement Toolkit.
 
@@ -14,9 +14,9 @@ import streamlit as st
 import plotly.express as px
 
 # Import utilities from the new, redesigned project structure
-from philips_quality_optimizer.data.session_state_manager import SessionStateManager
-from philips_quality_optimizer.utils.plotting import create_control_chart, create_histogram_with_specs
-from philips_quality_optimizer.utils.stats import calculate_process_capability
+from 6s.data.session_state_manager import SessionStateManager
+from 6s.utils.plotting import create_control_chart, create_histogram_with_specs
+from 6s.utils.stats import calculate_process_capability
 
 logger = logging.getLogger(__name__)
 
