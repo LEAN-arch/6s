@@ -11,7 +11,9 @@ import logging
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 from scipy.stats import norm
+import numpy as np  # <--- FIX: Added missing import
 
 from six_sigma.data.session_state_manager import SessionStateManager
 from six_sigma.utils.plotting import create_control_chart, create_histogram_with_specs, create_doe_plots, create_gage_rr_plots
@@ -19,17 +21,10 @@ from six_sigma.utils.stats import calculate_process_capability, perform_t_test, 
 
 logger = logging.getLogger(__name__)
 
-# <--- FIX: New function to dynamically generate a Fishbone Diagram --->
 def render_fishbone_diagram(effect: str):
-    """
-    Renders a Fishbone (Ishikawa) diagram using Streamlit columns and markdown.
-    
-    Args:
-        effect (str): The problem statement or effect to place at the head of the fish.
-    """
+    """Renders a Fishbone (Ishikawa) diagram using Streamlit columns and markdown."""
     st.markdown("##### Fishbone (Ishikawa) Diagram")
     
-    # Define potential causes for each category
     causes = {
         "Measurement": ["Gage not calibrated", "Incorrect test procedure", "Subjective visual inspection"],
         "Material": ["Inconsistent raw material", "Supplier quality issues", "Improper storage"],
@@ -39,25 +34,17 @@ def render_fishbone_diagram(effect: str):
         "Method": ["Outdated SOP", "Inefficient assembly sequence", "Poor handling instructions"]
     }
     
-    # Main spine of the fish
     st.markdown("<hr>", unsafe_allow_html=True)
-
-    # Use columns to represent the main bones of the fish
     cols = st.columns(6)
     categories = list(causes.keys())
 
     for i, col in enumerate(cols):
         with col:
-            # Main bone title
             st.markdown(f"**{categories[i]}**")
-            # Smaller bones (potential causes)
             for cause in causes[categories[i]]:
                 st.markdown(f"- {cause}")
 
-    # Head of the fish
     st.info(f"**Effect:** {effect}")
-# <--- End of Fix --->
-
 
 def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     """Creates the UI for the DMAIC Improvement Toolkit workspace."""
@@ -65,7 +52,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     st.markdown("Select an active improvement project below to access the full suite of DMAIC tools and analysis capabilities. This is your primary workspace for project execution.")
 
     try:
-        # --- 1. Load Data and Select a Project ---
         projects = ssm.get_data("dmaic_projects")
         if not projects:
             st.warning("No DMAIC projects have been defined in the Project Pipeline.")
@@ -83,7 +69,6 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
         
         project = next((p for p in projects if p['id'] == st.session_state.selected_project_id), None)
         
-        # --- 2. Define Tabs for each DMAIC phase ---
         phase_tabs = st.tabs(["**Define**", "**Measure**", "**Analyze (RCA)**", "**Improve (DOE)**", "**Control**"])
 
         # --- DEFINE PHASE ---
@@ -177,9 +162,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 st.text_input("5. Why was it not updated?", "Process oversight during design transfer.", key=f"why5_{project['id']}")
 
             with rca_cols[1]:
-                # <--- FIX: Replaced st.image with call to the new dynamic function --->
                 render_fishbone_diagram(effect=project['problem_statement'])
-                # <--- End of Fix --->
 
             st.markdown("---")
             st.markdown("##### Hypothesis Testing Suite")
