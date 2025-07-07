@@ -60,15 +60,24 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
             st.error(f"Invalid or missing data for {dataset}. Required columns: {', '.join(columns)}.")
             logger.error(f"Validation failed for {dataset}. Missing columns: {set(columns) - set(df.columns)}")
             return False
-        # Check numeric columns (except categorical ones)
+        # Check numeric columns (except categorical ones) and missing values
         for col in columns:
-            if col not in ["true_status", "final_qc_outcome"] and not pd.api.types.is_numeric_dtype(df[col]):
-                st.error(f"Column {col} in {dataset} must be numeric.")
-                logger.error(f"Non-numeric data in {col} for {dataset}.")
+            if col not in ["true_status", "final_qc_outcome"]:
+                if not pd.api.types.is_numeric_dtype(df[col]):
+                    st.error(f"Column {col} in {dataset} must be numeric.")
+                    logger.error(f"Non-numeric data in {col} for {dataset}.")
+                    return False
+                if df[col].isna().any():
+                    st.error(f"Column {col} in {dataset} contains missing values.")
+                    logger.error(f"Missing values in {col} for {dataset}.")
+                    return False
+            elif col == "final_qc_outcome" and not set(df[col].unique()).issubset({"Pass", "Fail"}):
+                st.error(f"Column {col} in {dataset} must contain only 'Pass' or 'Fail' values.")
+                logger.error(f"Invalid values in {col} for {dataset}: {df[col].unique()}")
                 return False
         # Additional check for predictive_quality_data size
-        if dataset == "predictive_quality_data" and len(df) < 10:
-            st.error(f"{dataset} has too few samples ({len(df)}). At least 10 samples are required for analysis.")
+        if dataset == "predictive_quality_data" and len(df) < 20:
+            st.error(f"{dataset} has too few samples ({len(df)}). At least 20 samples are required for analysis.")
             logger.error(f"{dataset} has insufficient samples: {len(df)}")
             return False
     return True
@@ -123,17 +132,21 @@ def get_trained_models(df_pred: pd.DataFrame) -> tuple:
         with st.spinner("Training predictive models (first run only)..."):
             features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
             target = 'final_qc_outcome'
-            X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
-            # Adjust test_size if dataset is small
+            X = df_pred[features].copy()
+            y = df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+            # Handle missing values
+            X = X.fillna(X.mean())
+            # Adjust test_size for small datasets
             test_size = 0.3 if len(X) >= 50 else 0.2
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42, stratify=y)
-            if len(X_test) == 0:
-                raise ValueError("Test set is empty after train-test split.")
+            if len(X_test) < 5:
+                raise ValueError(f"Test set too small ({len(X_test)} samples). At least 5 samples required.")
             scaler = StandardScaler().fit(X_train)
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
             model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
             model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
+            logger.info(f"Trained models with X_train shape: {X_train.shape}, X_test shape: {X_test.shape}")
             return model_rf, model_lr, X_test, y_test
     except Exception as e:
         logger.error(f"Model training failed: {e}")
@@ -283,23 +296,29 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 try:
                     features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
                     target = 'final_qc_outcome'
-                    X_local, y_local = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+                    X_local = df_pred[features].copy()
+                    y_local = df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
+                    # Handle missing values
+                    X_local = X_local.fillna(X_local.mean())
                     # Adjust test_size for small datasets
                     test_size = 0.3 if len(X_local) >= 50 else 0.2
                     X_train_local, X_test_local, y_train_local, _ = train_test_split(
                         X_local, y_local, test_size=test_size, random_state=42, stratify=y_local
                     )
-                    if len(X_test_local) < 5:
-                        raise ValueError(f"Test set too small ({len(X_test_local)} samples). At least 5 samples required for SHAP analysis.")
+                    if len(X_test_local) < 10:
+                        raise ValueError(f"Test set too small ({len(X_test_local)} samples). At least 10 samples required for SHAP analysis.")
                     # Convert to NumPy array to ensure consistency
                     X_train_local_np = X_train_local.to_numpy()
                     X_test_local_np = X_test_local.to_numpy()
+                    logger.info(f"X_train_local_np shape: {X_train_local_np.shape}, X_test_local_np shape: {X_test_local_np.shape}, Features: {features}")
                     model_rf_local = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train_local_np, y_train_local)
                     explainer = shap.TreeExplainer(model_rf_local, feature_names=features)
                     # Use min to avoid slicing issues
                     n_samples = min(len(X_test_local_np), 100)
                     shap_values = explainer.shap_values(X_test_local_np[:n_samples])
-                    logger.info(f"SHAP values shape: {np.array(shap_values).shape}, X_test_local shape: {X_test_local_np[:n_samples].shape}, Features: {features}")
+                    logger.info(f"SHAP values shape: {np.array(shap_values).shape}, X_test_local_np[:n_samples] shape: {X_test_local_np[:n_samples].shape}")
+                    if shap_values[1].shape != (n_samples, len(features)):
+                        raise ValueError(f"SHAP values shape mismatch: {shap_values[1].shape} vs expected ({n_samples}, {len(features)})")
                 except Exception as e:
                     st.error("Failed to compute SHAP values. This may be due to insufficient data or incompatible feature formats.")
                     logger.error(f"SHAP computation failed: {e}")
@@ -346,6 +365,19 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     except Exception as e:
                         st.error("Failed to render SHAP force plot.")
                         logger.error(f"SHAP force plot rendering failed: {e}")
+            else:
+                st.markdown("##### Fallback: Random Forest Feature Importance")
+                try:
+                    feature_importance = pd.DataFrame({
+                        'Feature': features,
+                        'Importance': model_rf_local.feature_importances_
+                    }).sort_values(by='Importance', ascending=False)
+                    fig = px.bar(feature_importance, x='Feature', y='Importance', title='Random Forest Feature Importance')
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.caption("Feature importance shows the relative contribution of each feature to the Random Forest predictions.")
+                except Exception as e:
+                    st.error("Failed to generate fallback feature importance plot.")
+                    logger.error(f"Fallback feature importance failed: {e}")
         else:
             st.warning("Predictive quality data is not available.")
 
