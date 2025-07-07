@@ -1,4 +1,4 @@
-# 6s/dashboards/global_operations_dashboard.py
+# six_sigma/dashboards/global_operations_dashboard.py
 """
 Renders the Global Operations Dashboard.
 
@@ -15,7 +15,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Ensure the app's root directory is in the path
-from 6s.data.session_state_manager import SessionStateManager
+from six_sigma.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
