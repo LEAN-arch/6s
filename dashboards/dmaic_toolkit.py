@@ -97,13 +97,26 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         fig.update_traces(textposition='top center'); st.plotly_chart(fig, use_container_width=True)
                     with col2:
                         st.markdown("###### CTQ Tree"); st.write("The needs are broken down into measurable requirements.")
-                        st.graphviz_chart('''...''') # Kept as is
+                        st.graphviz_chart('''
+                            digraph {
+                                "Fit in housing" -> "Correct Dimensions";
+                                "Correct Dimensions" -> "Length: 10±0.1mm";
+                                "Correct Dimensions" -> "Width: 8±0.1mm";
+                            }
+                        ''')
                 with doc_tabs[2]:
                     st.markdown("**Stakeholder Analysis / RACI Matrix**"); st.caption("Defines the roles and responsibilities of team members. (Responsible, Accountable, Consulted, Informed)")
                     raci_data = {'Task': ["Define Scope", "Collect Data", "Analyze Data", "Approve Solution"], 'John (MBB)': ['A', 'C', 'A', 'A'], 'Jane (Engineer)': ['R', 'R', 'R', 'C'], 'Mike (Ops)': ['C', 'R', 'C', 'I']}
                     raci_df = pd.DataFrame(raci_data).set_index('Task')
+                    
+                    # *** DEFINITIVE FIX: Use valid hex color codes to prevent SyntaxError ***
                     def color_raci(val):
-                        colors = {'R': 'background-color: #a8d_asyncio', 'A': 'background-color: #d_asyncio8a8', 'C': 'background-color: #a8d_asyncio8', 'I': 'background-color: #f0f0f0'}
+                        colors = {
+                            'R': 'background-color: #a8d8ea', # Light Blue
+                            'A': 'background-color: #f4c7c3', # Light Red
+                            'C': 'background-color: #b8d8be', # Light Green
+                            'I': 'background-color: #e0e0e0'  # Light Grey
+                        }
                         return colors.get(val, '')
                     st.dataframe(raci_df.style.applymap(color_raci), use_container_width=True)
 
@@ -119,8 +132,12 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             gage_data = ssm.get_data("gage_rr_data"); results_df, _ = calculate_gage_rr(gage_data)
             if not results_df.empty:
                 total_grr_contrib = results_df.loc['Total Gage R&R', '% Contribution']; grr_cols = st.columns([1, 2]); 
-                with grr_cols[0]: st.dataframe(results_df.style.format({'% Contribution': '{:.2f}%'}).background_gradient(cmap='Reds', subset=['% Contribution']));
+                with grr_cols[0]: 
+                    st.dataframe(results_df.style.format({'% Contribution': '{:.2f}%'}).background_gradient(cmap='Reds', subset=['% Contribution']))
+                    if total_grr_contrib < 10: st.success(f"**Verdict:** System is **Acceptable** ({total_grr_contrib:.2f}%)")
+                    else: st.error(f"**Verdict:** System is **Unacceptable** ({total_grr_contrib:.2f}%)")
                 with grr_cols[1]: fig1, fig2 = create_gage_rr_plots(gage_data); st.plotly_chart(fig1, use_container_width=True); st.plotly_chart(fig2, use_container_width=True)
+            else: st.error("Gage R&R analysis failed.")
             st.markdown("---")
             with st.expander("##### 📖 Explore Measure Phase Tollgate Documents & Tools"):
                 doc_tabs = st.tabs(["Data Collection Plan", "Value Stream Map (VSM)"]);
@@ -135,7 +152,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
         with phase_tabs[2]:
             st.subheader("Analyze Phase: Identify Root Causes"); st.info("The **Analyze** phase is about using data and structured problem-solving tools to identify the verified root causes of the problem defined in the charter.")
             st.markdown("#### Root Cause Brainstorming & Verification")
-            rca_cols = st.columns(2); rca_cols[0].markdown("##### Fishbone Diagram"); _render_fishbone_diagram(effect="Low Sub-Assembly Yield"); rca_cols[1].markdown("##### 5 Whys Analysis");
+            rca_cols = st.columns(2); rca_cols[0].markdown("##### Fishbone Diagram"); _render_fishbone_diagram(effect="Low Sub-Assembly Yield"); rca_cols[1].markdown("##### 5 Whys Analysis"); st.info("Drill down past symptoms to find the true root cause."); st.text_input("1. Why is yield low?", "The alignment fixture is inconsistent.", key=f"why1_{project['id']}"); st.text_input("2. Why is it inconsistent?", "It wears down quickly.", key=f"why2_{project['id']}"); st.error("**Root Cause:** Process oversight during design transfer.", icon="🔑")
             st.markdown("---"); st.markdown("#### Data-Driven Analysis & Root Cause Verification")
             ht_shifts = project_data["shifts"]; result = perform_hypothesis_test(ht_shifts['shift_1'], ht_shifts['shift_2'])
             st.plotly_chart(px.box(pd.melt(ht_shifts, var_name='Group', value_name='Value'), x='Group', y='Value', color='Group', title="Hypothesis Test: Comparison of Production Shifts"), use_container_width=True)
@@ -154,7 +171,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     fig = px.scatter(fmea_data, x='Occurrence', y='Severity', size='RPN', color='RPN', text='Failure Mode', title='FMEA Risk Prioritization'); st.plotly_chart(fig, use_container_width=True)
                 with doc_tabs[2]:
                     st.markdown("**Regression Analysis**"); st.caption("Models the relationship between an input (X) and an output (Y)."); X = np.random.rand(50) * 10; y = 0.5 * X + np.random.randn(50) * 2 + 3; model = sm.OLS(y, sm.add_constant(X)).fit()
-                    fig = px.scatter(x=X[:,1], y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate'); fig.add_traces(go.Scatter(x=X[:,1], y=model.fittedvalues, mode='lines')); st.plotly_chart(fig, use_container_width=True)
+                    fig = px.scatter(x=X[:,1], y=y, labels={'x': 'Fixture Age (months)', 'y': 'Defect Rate (%)'}, title='Fixture Age vs. Defect Rate', trendline="ols"); st.plotly_chart(fig, use_container_width=True)
                     st.code(f"{model.summary()}"); st.success("**Conclusion:** The strong positive coefficient and low p-value statistically confirm that as the fixture ages, the defect rate increases.")
         
         # ==================== IMPROVE PHASE ====================
