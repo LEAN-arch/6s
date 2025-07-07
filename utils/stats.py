@@ -1,4 +1,4 @@
-# 6s/utils/stats.py
+# six_sigma/utils/stats.py
 """
 Utility functions for performing standardized statistical calculations.
 
