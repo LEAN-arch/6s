@@ -1,4 +1,4 @@
-# 6s/dashboards/release_optimization_suite.py
+# six_sigma/dashboards/release_optimization_suite.py
 """
 Renders the Product Release Optimization Suite.
 
@@ -19,7 +19,7 @@ from sklearn.metrics import roc_curve, auc
 
 logger = logging.getLogger(__name__)
 
-from 6s.data.session_state_manager import SessionStateManager
+from six_sigma.data.session_state_manager import SessionStateManager
 
 def render_release_optimization_suite(ssm: SessionStateManager) -> None:
     """
@@ -110,7 +110,6 @@ def render_release_optimization_suite(ssm: SessionStateManager) -> None:
                 
                 # Simulate outcomes over 1000 hypothetical lots
                 bad_lots_passed = p_accept * 100
-                good_lots_failed = (1 - p_accept) * 100 # Simplification for this demo
                 
                 total_cost = n * cost_per_sample
                 results.append({
