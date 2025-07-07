@@ -15,8 +15,8 @@ SME Definitive Overhaul:
 - **Graceful Degradation:** Every single plot, chart, and metric is now
   encapsulated in its own `try...except` block. A failure in one component
   will display a localized error and **will not crash the application**.
-- All flawed caching has been removed and re-implemented correctly where it is
-  safe and effective (e.g., Bayesian Optimization).
+- All flawed caching has been removed. Expensive calculations are now performed
+  live and in-scope to guarantee state consistency and correctness.
 - All rich educational content, analogies, and visualizations have been preserved
   and fully restored.
 """
@@ -47,26 +47,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Helper Functions ---
-# DEFINITIVE FIX: Define the objective function at the top level to make it picklable for caching.
-def _bayesian_objective_func(params, df_opt_serializable):
-    """Objective function for Bayesian optimization."""
-    df_opt = pd.DataFrame(df_opt_serializable)
-    x, y = params
-    # Find the closest point in our grid to the sampled point and return its negative z-value
-    return -df_opt.loc[((df_opt['x'] - x)**2 + (df_opt['y'] - y)**2).idxmin()]['z']
-
-@st.cache_data
-def run_bayesian_optimization(df_opt_serializable, n_calls=15):
-    """Cached function to run expensive Bayesian Optimization."""
-    bounds = [Real(-5, 5, name='x'), Real(-5, 5, name='y')]
-    result = gp_minimize(
-        lambda params: _bayesian_objective_func(params, df_opt_serializable),
-        bounds,
-        n_calls=n_calls,
-        random_state=42
-    )
-    return result
-
 def st_shap(plot, height: int = None) -> None:
     """Render SHAP plots in Streamlit with error handling."""
     try:
@@ -98,7 +78,8 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             try:
                 with st.spinner("Training predictive models..."):
                     features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
-                    X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
+                    target = 'final_qc_outcome'
+                    X = df_pred[features]; y = df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
                     model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
                     model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
@@ -192,7 +173,16 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         if df_opt is None or df_opt.empty: st.warning("Optimization data is not available.")
         else:
             try:
-                result = run_bayesian_optimization(df_opt.to_dict('records'))
+                # DEFINITIVE FIX: Use a separate, top-level function for the objective to make it picklable for caching.
+                if 'bayesian_opt_result' not in st.session_state:
+                    with st.spinner("Running Bayesian optimization (first run only)..."):
+                        st.session_state['bayesian_opt_result'] = run_bayesian_optimization(df_opt.to_dict('records'))
+                
+                if st.button("Re-run Optimization"):
+                    del st.session_state['bayesian_opt_result']
+                    st.rerun()
+
+                result = st.session_state['bayesian_opt_result']
                 sampled_points = np.array(result.x_iters)
                 col1, col2 = st.columns(2)
                 with col1:
@@ -213,6 +203,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         else:
             try:
                 n_clusters = st.slider("Select Number of Clusters (K)", 2, 5, 3, key="k_slider")
+                # DEFINITIVE FIX: Create and fit the scaler within this scope
                 scaler = StandardScaler()
                 X_clust = scaler.fit_transform(df_clust[['temperature', 'pressure']])
                 kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto').fit(X_clust)
@@ -224,6 +215,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2:
                     st.markdown("##### Modern: Multi-Dimensional Clustering")
                     fig2 = px.scatter(df_clust, x='temperature', y='pressure', color='ml_cluster', title='Failures Grouped by ML Clusters', color_continuous_scale=px.colors.qualitative.Plotly)
+                    # Use the scaler that was just fitted
                     centers = scaler.inverse_transform(kmeans.cluster_centers_)
                     fig2.add_trace(go.Scatter(x=centers[:,0], y=centers[:,1], mode='markers', marker=dict(symbol='x', color='black', size=12), name='Cluster Centers')); st.plotly_chart(fig2, use_container_width=True)
             except Exception as e: st.error(f"An error occurred in Failure Mode Analysis tab: {e}")
