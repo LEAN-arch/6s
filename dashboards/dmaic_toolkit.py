@@ -56,7 +56,6 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                 ):
                     st.warning(f"Missing or invalid shift data for project {project_id}. Using synthetic shift data for demonstration.")
                     logger.warning(f"Missing or invalid shift data for {project_id}: {shifts.keys() if shifts else 'no shifts key'}")
-                    # Provide synthetic shift data
                     data[project_id]["shifts"] = {
                         "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
                         "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
@@ -133,7 +132,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.error("No projects available.")
             logger.error("No projects found in dmaic_projects")
             return
-        project_titles = {p['id']: f"{p['id']}: { అ
+        project_titles = {p['id']: f"{p['id']}: {p['title']}" for p in projects}
         if not project_titles:
             st.error("No valid project titles found.")
             logger.error("Project titles dictionary is empty")
