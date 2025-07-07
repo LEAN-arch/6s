@@ -2,12 +2,6 @@
 """
 Manages the application's session state, acting as an in-memory data source for
 a Master Black Belt's quality improvement program.
-
-SME Overhaul: This module generates a highly sophisticated and interconnected
-dataset tailored for advanced Six Sigma analysis. It includes multi-step process
-yields for RTY, granular internal/external COPQ data, and structured datasets for
-Gage R&R, DOE, and hypothesis testing, providing a realistic foundation for an
-expert-level toolkit.
 """
 
 import logging
@@ -77,11 +71,9 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
 
     # --- 4. Structured Datasets for Statistical Tools ---
     gage_data = []
-    parts = range(1, 11)
-    operators = ["Operator A", "Operator B", "Operator C"]
-    for part in parts:
+    for part in range(1, 11):
         true_value = 10 + part * 0.1
-        for operator in operators:
+        for operator in ["Operator A", "Operator B", "Operator C"]:
             op_bias = 0.01 if operator == "Operator B" else -0.01 if operator == "Operator C" else 0
             for replicate in range(3):
                 measurement = true_value + op_bias + np.random.normal(0, 0.05)
@@ -96,8 +88,12 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
     ])
     
     ht_data = pd.DataFrame({
-        'before_change': np.random.normal(loc=25.5, scale=1.2, size=30), 'after_change': np.random.normal(loc=26.5, scale=1.1, size=30),
-        'supplier_a': np.random.normal(loc=50.1, scale=0.5, size=50), 'supplier_b': np.random.normal(loc=50.3, scale=0.5, size=50),
+        # <--- FIX: Changed size from 30 to 50 to match other arrays --->
+        'before_change': np.random.normal(loc=25.5, scale=1.2, size=50),
+        'after_change': np.random.normal(loc=26.5, scale=1.1, size=50),
+        # <--- End of Fix --->
+        'supplier_a': np.random.normal(loc=50.1, scale=0.5, size=50),
+        'supplier_b': np.random.normal(loc=50.3, scale=0.5, size=50),
         'supplier_c': np.random.normal(loc=50.1, scale=0.5, size=50),
     })
     
@@ -114,7 +110,7 @@ def _create_mbb_model(version: int) -> Dict[str, Any]:
 
 class SessionStateManager:
     _DATA_KEY = "six_sigma_mbb_data"
-    _CURRENT_DATA_VERSION = 5 # Incremented for final MBB overhaul
+    _CURRENT_DATA_VERSION = 5
 
     def __init__(self):
         session_data = st.session_state.get(self._DATA_KEY)
