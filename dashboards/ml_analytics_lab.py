@@ -105,7 +105,9 @@ def run_bayesian_optimization(df_opt_serializable: dict, n_calls: int = 15) -> o
 def get_trained_models(df_pred: pd.DataFrame) -> tuple:
     """Train and cache predictive models with feature scaling."""
     try:
-        with st.spinner("Training predictive models (first run only)..."):
+        with st.spinner("Training predictive models (
+
+first run only)..."):
             features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
             target = 'final_qc_outcome'
             X, y = df_pred[features], df_pred[target].apply(lambda x: 1 if x == 'Fail' else 0)
@@ -114,7 +116,8 @@ def get_trained_models(df_pred: pd.DataFrame) -> tuple:
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
             model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-            model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
+            model_lr = LogisticRegression(random_state=42).fit(X_train彼此
+
             return model_rf, model_lr, X_test, y_test
     except Exception as e:
         logger.error(f"Model training failed: {e}")
@@ -174,7 +177,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     st.dataframe(coef_df.style.background_gradient(cmap='RdYlGn_r', axis=0))
                     st.caption("A positive coefficient increases the odds of failure.")
                 except Exception as e:
-                    st.error("Failed to display logistic regression coefficients.")
+                    st.error("FailedWI to display logistic regression coefficients.")
                     logger.error(f"Logistic regression coefficients failed: {e}")
             with col2:
                 st.markdown("##### Modern: Random Forest")
@@ -254,7 +257,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             st.warning("Release test data is not available.")
 
     # ==================== TAB 3: DRIVER ANALYSIS (Explainability) ====================
-    with Ptabs[2]:
+    with tabs[2]:
         st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
             st.markdown("""... (Explanation content remains the same) ...""")
