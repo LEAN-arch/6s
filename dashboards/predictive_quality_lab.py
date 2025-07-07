@@ -1,4 +1,4 @@
-# 6s/dashboards/predictive_quality_lab.py
+# six_sigma/dashboards/predictive_quality_lab.py
 """
 Renders the Predictive Quality Lab.
 
@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, roc_curve, auc
 
-from 6s.data.session_state_manager import SessionStateManager
+from six_sigma.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
