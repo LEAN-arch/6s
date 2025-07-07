@@ -56,6 +56,7 @@ def render_project_pipeline(ssm: SessionStateManager) -> None:
         # --- 3. Visualizations ---
         viz_cols = st.columns(2)
         with viz_cols[0]:
+            # --- DMAIC Phase Funnel ---
             st.markdown("**Project Distribution by DMAIC Phase**")
             phase_order = ["Define", "Measure", "Analyze", "Improve", "Control"]
             phase_counts = df['phase'].value_counts().reindex(phase_order, fill_value=0)
@@ -74,6 +75,7 @@ def render_project_pipeline(ssm: SessionStateManager) -> None:
             st.plotly_chart(fig_funnel, use_container_width=True)
 
         with viz_cols[1]:
+            # --- Project Timeline Gantt Chart ---
             st.markdown("**Project Timelines**")
             fig_gantt = px.timeline(
                 df,
