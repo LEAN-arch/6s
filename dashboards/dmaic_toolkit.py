@@ -80,16 +80,21 @@ def _render_fishbone_diagram(effect: str):
         "Method": ["Outdated SOP", "Inefficient assembly sequence"]
     }
     try:
-        dot = f'''
-        digraph {{
+        dot = r'''
+        digraph {
             rankdir=LR;
             node [shape=box, style=filled, fillcolor=lightblue];
-            Effect [label="{effect}", fillcolor=firebrick, fontcolor=white];
-            {"; ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()])};
-            {"; ".join([f"{cat} -> Effect" for cat in causes.keys()])};
-            {"; ".join([f"{cat}_sub{i} [label=\"{sub}\", shape=ellipse, fillcolor=lightyellow] -> {cat}" for cat, subs in causes.items() for i, sub in enumerate(subs)])};
-        }}
-        '''
+            Effect [label="%s", fillcolor=firebrick, fontcolor=white];
+            %s;
+            %s;
+            %s;
+        }
+        ''' % (
+            effect.replace('"', '\\"'),
+            "; ".join([f"{cat} [label=\"{cat}\"]" for cat in causes.keys()]),
+            "; ".join([f"{cat} -> Effect" for cat in causes.keys()]),
+            "; ".join([f"{cat}_sub{i} [label=\"{sub.replace('\"', '\\\"')}\", shape=ellipse, fillcolor=lightyellow] -> {cat}" for cat, subs in causes.items() for i, sub in enumerate(subs)])
+        )
         st.graphviz_chart(dot)
     except Exception as e:
         st.error("Failed to render Fishbone diagram.")
@@ -155,7 +160,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     st.markdown("**SIPOC Diagram (Suppliers, Inputs, Process, Outputs, Customers)**")
                     st.caption("A high-level map of the process from start to finish. It helps define the project boundaries and scope.")
                     try:
-                        st.graphviz_chart('''
+                        st.graphviz_chart(r'''
                             digraph {
                                 rankdir=LR;
                                 node [shape=box, style=rounded];
@@ -194,7 +199,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         st.markdown("###### CTQ Tree")
                         st.write("The needs are broken down into measurable requirements.")
                         try:
-                            st.graphviz_chart('''
+                            st.graphviz_chart(r'''
                                 digraph {
                                     "Fit in housing" -> "Correct Dimensions";
                                     "Correct Dimensions" -> "Length: 10±0.1mm";
