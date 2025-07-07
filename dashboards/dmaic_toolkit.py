@@ -1,5 +1,7 @@
 """
 Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
+workspace for project execution within the Command Center."""
+Renders the expert-level DMAIC Improvement Project Toolkit, the core operational
 workspace for project execution within the Command Center.
 
 This module provides an interactive, end-to-end environment for executing
@@ -97,8 +99,17 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                 with doc_tabs[0]:
                     st.markdown("**SIPOC Diagram (Suppliers, Inputs, Process, Outputs, Customers)**")
                     st.caption("A high-level map of the process from start to finish. It helps define the project boundaries and scope.")
-                    sipoc_data = {"Suppliers": ["Component Vendors", "Sub-Assembly Line"], "Inputs": ["Capacitors, PCBs", "Housing, Screws"], "Process": ["Inspect -> Assemble -> Solder -> Test"], "Outputs": ["Functional Charging Module"], "Customers": ["Main Assembly Line", "Final Product"]}
+                    
+                    # *** DEFINITIVE FIX: Restructure data so each category has one string value ***
+                    sipoc_data = {
+                        "Suppliers": "Component Vendors, Sub-Assembly Line",
+                        "Inputs": "Capacitors, PCBs, Housing, Screws",
+                        "Process": "Inspect -> Assemble -> Solder -> Test",
+                        "Outputs": "Functional Charging Module",
+                        "Customers": "Main Assembly Line, Final Product"
+                    }
                     st.dataframe(pd.DataFrame.from_dict(sipoc_data, orient='index', columns=['Examples']).rename_axis('Category'), use_container_width=True)
+
                 with doc_tabs[1]:
                     st.markdown("**Voice of the Customer (VOC) & Critical-to-Quality (CTQ) Tree**")
                     st.caption("Translate customer needs into measurable product/process characteristics.")
