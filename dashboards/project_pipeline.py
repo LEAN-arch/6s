@@ -37,14 +37,12 @@ def render_project_pipeline(ssm: SessionStateManager) -> None:
 
         df = pd.DataFrame(projects_list)
         df['start_date'] = pd.to_datetime(df['start_date'])
-        # Estimate end dates for Gantt chart based on phase
         phase_duration = {"Define": 30, "Measure": 45, "Analyze": 60, "Improve": 90, "Control": 30}
         df['end_date'] = df.apply(lambda row: row['start_date'] + pd.Timedelta(days=phase_duration.get(row['phase'], 30)), axis=1)
 
         # --- 2. High-Level Program KPIs ---
         total_projects = len(df)
         projects_in_control = len(df[df['phase'] == 'Control'])
-        # Simplified for demo: COPQ saved is a function of projects in control
         total_copq_saved = projects_in_control * 125000 
 
         st.subheader("Program Health KPIs")
@@ -58,7 +56,6 @@ def render_project_pipeline(ssm: SessionStateManager) -> None:
         # --- 3. Visualizations ---
         viz_cols = st.columns(2)
         with viz_cols[0]:
-            # --- DMAIC Phase Funnel ---
             st.markdown("**Project Distribution by DMAIC Phase**")
             phase_order = ["Define", "Measure", "Analyze", "Improve", "Control"]
             phase_counts = df['phase'].value_counts().reindex(phase_order, fill_value=0)
@@ -77,7 +74,6 @@ def render_project_pipeline(ssm: SessionStateManager) -> None:
             st.plotly_chart(fig_funnel, use_container_width=True)
 
         with viz_cols[1]:
-            # --- Project Timeline Gantt Chart ---
             st.markdown("**Project Timelines**")
             fig_gantt = px.timeline(
                 df,
