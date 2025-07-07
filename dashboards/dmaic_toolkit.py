@@ -39,17 +39,28 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
                 st.error(f"Invalid {dataset} structure: empty or not a dictionary.")
                 logger.error(f"Invalid {dataset} structure: {type(data)}")
                 return False
-            for p in data.values():
+            for project_id, p in data.items():
                 baseline = p.get("baseline", {}).get("measurement")
                 specs = p.get("specs", {})
+                shifts = p.get("shifts", {})
                 if not isinstance(baseline, pd.Series) or baseline.empty or not pd.api.types.is_numeric_dtype(baseline):
-                    st.error(f"Invalid baseline measurement in {dataset}.")
-                    logger.error(f"Invalid baseline measurement: {type(baseline)}")
+                    st.error(f"Invalid baseline measurement in {dataset} for project {project_id}.")
+                    logger.error(f"Invalid baseline measurement for {project_id}: {type(baseline)}")
                     return False
                 if not all(k in specs for k in ["lsl", "usl", "target"]):
-                    st.error(f"Missing specification limits in {dataset}.")
-                    logger.error(f"Missing specs: {specs.keys()}")
+                    st.error(f"Missing specification limits in {dataset} for project {project_id}.")
+                    logger.error(f"Missing specs for {project_id}: {specs.keys()}")
                     return False
+                if not all(k in shifts for k in ["shift_1", "shift_2"]) or not all(
+                    isinstance(shifts[k], (list, np.ndarray, pd.Series)) and len(shifts[k]) > 0 for k in ["shift_1", "shift_2"]
+                ):
+                    st.warning(f"Missing or invalid shift data for project {project_id}. Using synthetic shift data for demonstration.")
+                    logger.warning(f"Missing or invalid shift data for {project_id}: {shifts.keys() if shifts else 'no shifts key'}")
+                    # Provide synthetic shift data
+                    data[project_id]["shifts"] = {
+                        "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
+                        "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
+                    }
         else:
             if data.empty or (required_cols and not all(col in data.columns for col in required_cols)):
                 st.error(f"Invalid or missing {dataset}.")
@@ -122,7 +133,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.error("No projects available.")
             logger.error("No projects found in dmaic_projects")
             return
-        project_titles = {p['id']: f"{p['id']}: {p['title']}" for p in projects}
+        project_titles = {p['id']: f"{p['id']}: { అ
         if not project_titles:
             st.error("No valid project titles found.")
             logger.error("Project titles dictionary is empty")
@@ -348,22 +359,27 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
 
             st.markdown("---")
             st.markdown("#### Data-Driven Analysis & Root Cause Verification")
-            if "shifts" not in project_data or not all(key in project_data["shifts"] for key in ["shift_1", "shift_2"]):
-                st.error(f"No valid shift data for project {selected_id}. Please provide shift data to enable hypothesis testing.")
-                logger.error(f"Missing shift data for {selected_id}")
-            else:
-                ht_shifts = project_data["shifts"]
-                try:
-                    result = perform_hypothesis_test(ht_shifts['shift_1'], ht_shifts['shift_2'])
-                    fig = px.box(pd.melt(pd.DataFrame(ht_shifts), var_name='Group', value_name='Value'), x='Group', y='Value', color='Group', title="Hypothesis Test: Comparison of Production Shifts")
-                    st.plotly_chart(fig, use_container_width=True)
-                    if result.get('reject_null'):
-                        st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}).")
-                    else:
-                        st.info(f"**Conclusion:** No significant difference (p = {result.get('p_value', 0):.4f}).")
-                except Exception as e:
-                    st.error("Failed to perform hypothesis test.")
-                    logger.error("Hypothesis test failed: %s", e, exc_info=True)
+            ht_shifts = project_data.get("shifts", {})
+            if not all(key in ht_shifts for key in ["shift_1", "shift_2"]) or not all(
+                isinstance(ht_shifts[key], (list, np.ndarray, pd.Series)) and len(ht_shifts[key]) > 0 for key in ["shift_1", "shift_2"]
+            ):
+                st.warning(f"No valid shift data for project {selected_id}. Using synthetic shift data for demonstration.")
+                logger.warning(f"Missing or invalid shift data for {selected_id}: {ht_shifts.keys() if ht_shifts else 'no shifts key'}")
+                ht_shifts = {
+                    "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
+                    "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
+                }
+            try:
+                result = perform_hypothesis_test(ht_shifts['shift_1'], ht_shifts['shift_2'])
+                fig = px.box(pd.melt(pd.DataFrame(ht_shifts), var_name='Group', value_name='Value'), x='Group', y='Value', color='Group', title="Hypothesis Test: Comparison of Production Shifts")
+                st.plotly_chart(fig, use_container_width=True)
+                if result.get('reject_null'):
+                    st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}).")
+                else:
+                    st.info(f"**Conclusion:** No significant difference (p = {result.get('p_value', 0):.4f}).")
+            except Exception as e:
+                st.error("Failed to perform hypothesis test.")
+                logger.error("Hypothesis test failed: %s", e, exc_info=True)
 
             st.markdown("---")
             with st.expander("##### 📖 Explore Analyze Phase Tollgate Documents & Tools"):
