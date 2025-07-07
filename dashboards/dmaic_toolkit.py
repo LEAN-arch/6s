@@ -180,12 +180,10 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             
             if test_type == "2-Sample t-Test (Before vs. After)":
                 st.markdown("###### Is there a significant difference between the 'Before' and 'After' process change?")
-                # *** FIX: Call the new, correct function from stats.py ***
                 result = perform_hypothesis_test(ht_data['before_change'], ht_data['after_change'])
                 df_plot = pd.melt(ht_data[['before_change', 'after_change']], var_name='Group', value_name='Value')
                 st.plotly_chart(px.box(df_plot, x='Group', y='Value', color='Group'), use_container_width=True)
                 
-                # *** FIX: Unpack the results dictionary correctly ***
                 if result.get('reject_null'): 
                     st.success(f"**Conclusion:** The difference is statistically significant (p = {result.get('p_value', 0):.4f}). We reject the null hypothesis.")
                 else: 
@@ -194,11 +192,9 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             elif test_type == "ANOVA (Supplier A vs. B vs. C)":
                 st.markdown("###### Is there a significant difference in component strength between Suppliers A, B, and C?")
                 df_anova = pd.melt(ht_data[['supplier_a', 'supplier_b', 'supplier_c']], var_name='group', value_name='value')
-                # *** FIX: Call the correct function ***
                 result = perform_anova_on_dataframe(df_anova, 'value', 'group')
                 st.plotly_chart(px.box(df_anova, x='group', y='value', color='group'), use_container_width=True)
 
-                # *** FIX: Unpack the results dictionary correctly ***
                 if result.get('reject_null'): 
                     st.success(f"**Conclusion:** There is a statistically significant difference between the suppliers (p = {result.get('p_value', 0):.4f}).")
                 else: 
@@ -234,13 +230,14 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.info("The **Control** phase is about institutionalizing the improvement to ensure it is permanent. This involves updating documentation, implementing monitoring systems like SPC, and creating a formal control plan.")
             
             st.markdown("#### 1. Finalized Control Plan")
+            # *** FIX: Ensure all lists in the dictionary have the same length (2) ***
             control_plan_data = {
-                'Process Step': ['Display Module Bonding'], 
-                'Critical Parameter (Y)': ['Bond Strength'], 
+                'Process Step': ['Display Module Bonding', 'Display Module Bonding'], 
+                'Critical Parameter (Y)': ['Bond Strength', 'Bond Strength'], 
                 'Key Input (X)': ['Temperature', 'Time'], 
-                'Specification': ['> 95 MPa'], 
-                'Control Method': ['SPC Chart (I-MR) on bonding machine', 'Automated timer'], 
-                'Reaction Plan': ['Halt line if SPC shows out-of-control. Recalibrate bonder.', 'Alarm if timer fails.']
+                'Specification': ['> 95 MPa', '> 95 MPa'], 
+                'Control Method': ['SPC Chart (I-MR) on bonding machine', 'Automated timer on bonding cycle'], 
+                'Reaction Plan': ['Halt line if SPC shows out-of-control point. Recalibrate bonder.', 'Alarm if timer fails. Maintenance to check PLC.']
             }
             st.dataframe(pd.DataFrame(control_plan_data), hide_index=True, use_container_width=True)
             
