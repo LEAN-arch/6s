@@ -9,29 +9,38 @@ most impactful areas for cost-saving initiatives.
 
 SME Overhaul:
 - Differentiates between Internal and External Failure Costs.
-- Upgraded Pareto chart for better readability.
+- Upgraded Pareto chart for better readability and insight.
 - Added a time-series trend plot to show COPQ composition over time.
 - Implemented a more powerful, multi-level treemap for hierarchical drill-down.
+- Added clear explanations of COPQ concepts for all user levels.
 """
 
 import logging
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 
 from six_sigma.data.session_state_manager import SessionStateManager
 
 logger = logging.getLogger(__name__)
 
 def render_copq_dashboard(ssm: SessionStateManager) -> None:
-    """
-    Creates the UI for the COPQ Analysis Center tab.
-
-    Args:
-        ssm (SessionStateManager): The session state manager to access failure data.
-    """
+    """Creates the UI for the COPQ Analysis Center tab."""
     st.header("💰 Cost of Poor Quality (COPQ) Analysis Center")
     st.markdown("Drill down into the specific drivers of internal and external failure costs. Use these tools to identify and prioritize the most significant opportunities for cost reduction.")
+
+    with st.expander("Learn More: Understanding Cost of Poor Quality"):
+        st.markdown("""
+        **Cost of Poor Quality (COPQ)** is the total cost incurred from producing defective products. It's a powerful metric for translating quality problems into financial terms, which is essential for prioritizing improvement projects.
+
+        - **Internal Failure Costs:** Costs from defects caught *before* reaching the customer. These are bad, but less damaging than external failures.
+          - _Examples: Scrap, Rework, Re-testing, Downgrading._
+        - **External Failure Costs:** Costs from defects that *reach the customer*. These are the most damaging to both finances and brand reputation.
+          - _Examples: Warranty Claims, Customer Complaints, Product Recalls, Field Service Costs._
+        
+        **The goal is to use this dashboard to find the biggest cost drivers and eliminate them.**
+        """)
 
     try:
         # --- 1. Load and Prepare Data ---
@@ -51,10 +60,8 @@ def render_copq_dashboard(ssm: SessionStateManager) -> None:
         st.subheader("COPQ Overview (Last 365 Days)")
         kpi_cols = st.columns(3)
         kpi_cols[0].metric("Total COPQ", f"${total_copq/1_000_000:.2f}M")
-        kpi_cols[1].metric("Internal Failure Costs", f"${internal_copq/1_000:.1f}K",
-                           help="Costs from defects caught before reaching the customer (e.g., scrap, rework).")
-        kpi_cols[2].metric("External Failure Costs", f"${external_copq/1_000:.1f}K",
-                           help="Costs from defects that reached the customer (e.g., warranty, complaints).")
+        kpi_cols[1].metric("Internal Failure Costs", f"${internal_copq/1_000:.1f}K", help="Costs from defects caught before reaching the customer (e.g., scrap, rework).")
+        kpi_cols[2].metric("External Failure Costs", f"${external_copq/1_000:.1f}K", help="Costs from defects that reached the customer (e.g., warranty, complaints).", delta_color="inverse")
         st.divider()
 
         # --- 3. Pareto Analysis of Failure Costs ---
@@ -121,7 +128,7 @@ def render_copq_dashboard(ssm: SessionStateManager) -> None:
             st.warning(
                 f"**Highest Impact Opportunity:** The failure category **'{top_failure['category']}'** accounts for **${top_failure['Total Cost']:,.0f}**, "
                 f"which is **{top_failure['Cumulative Percentage']:.1f}%** of the total recorded COPQ."
-                f"\n\n**Recommendation:** This is a clear, high-impact target. Launch a new **DMAIC project** in the workspace to investigate the root causes of this failure mode and drive significant cost savings.",
+                f"\n\n**Recommendation:** This is a clear, high-impact target. Launch a new **DMAIC project** to investigate the root causes of this failure mode and drive significant cost savings.",
                 icon="🎯"
             )
         
