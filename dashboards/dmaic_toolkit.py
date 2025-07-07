@@ -29,39 +29,70 @@ def validate_datasets(ssm: SessionStateManager) -> bool:
     }
     for dataset, required_cols in datasets.items():
         data = ssm.get_data(dataset)
+        logger.info(f"Validating dataset: {dataset}, type: {type(data)}")
         if dataset == "dmaic_projects":
             if not isinstance(data, list) or not data or not all(isinstance(p, dict) and all(col in p for col in required_cols) for p in data):
                 st.error(f"Invalid {dataset} structure.")
-                logger.error(f"Invalid {dataset} structure")
-                return False
-        elif dataset == "dmaic_project_data":
-            if not isinstance(data, dict) or not data:
-                st.error(f"Invalid {dataset} structure: empty or not a dictionary.")
                 logger.error(f"Invalid {dataset} structure: {type(data)}")
                 return False
-            for project_id, p in data.items():
-                baseline = p.get("baseline", {}).get("measurement")
-                specs = p.get("specs", {})
-                shifts = p.get("shifts", {})
-                if not isinstance(baseline, pd.Series) or baseline.empty or not pd.api.types.is_numeric_dtype(baseline):
-                    st.error(f"Invalid baseline measurement in {dataset} for project {project_id}.")
-                    logger.error(f"Invalid baseline measurement for {project_id}: {type(baseline)}")
+        elif dataset == "dmaic_project_data":
+            # Handle case where data is a DataFrame
+            if isinstance(data, pd.DataFrame):
+                if data.empty:
+                    st.error(f"Invalid {dataset} structure: empty DataFrame.")
+                    logger.error(f"Invalid {dataset} structure: empty DataFrame")
                     return False
-                if not all(k in specs for k in ["lsl", "usl", "target"]):
-                    st.error(f"Missing specification limits in {dataset} for project {project_id}.")
-                    logger.error(f"Missing specs for {project_id}: {specs.keys()}")
+                for project_id in data.index:
+                    project_data = data.loc[project_id]
+                    baseline = project_data.get("baseline", {}).get("measurement")
+                    specs = project_data.get("specs", {})
+                    shifts = project_data.get("shifts", {})
+                    if not isinstance(baseline, pd.Series) or baseline.empty or not pd.api.types.is_numeric_dtype(baseline):
+                        st.error(f"Invalid baseline measurement in {dataset} for project {project_id}.")
+                        logger.error(f"Invalid baseline measurement for {project_id}: {type(baseline)}")
+                        return False
+                    if not all(k in specs for k in ["lsl", "usl", "target"]):
+                        st.error(f"Missing specification limits in {dataset} for project {project_id}.")
+                        logger.error(f"Missing specs for {project_id}: {specs.keys()}")
+                        return False
+                    if not all(k in shifts for k in ["shift_1", "shift_2"]) or not all(
+                        isinstance(shifts[k], (list, np.ndarray, pd.Series)) and len(shifts[k]) > 0 for k in ["shift_1", "shift_2"]
+                    ):
+                        st.warning(f"Missing or invalid shift data for project {project_id}. Using synthetic shift data for demonstration.")
+                        logger.warning(f"Missing or invalid shift data for {project_id}: {shifts.keys() if shifts else 'no shifts key'}")
+                        data.at[project_id, "shifts"] = {
+                            "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
+                            "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
+                        }
+            else:
+                # Assume dictionary structure as fallback
+                if not isinstance(data, dict) or not data:
+                    st.error(f"Invalid {dataset} structure: empty or not a dictionary.")
+                    logger.error(f"Invalid {dataset} structure: {type(data)}")
                     return False
-                if not all(k in shifts for k in ["shift_1", "shift_2"]) or not all(
-                    isinstance(shifts[k], (list, np.ndarray, pd.Series)) and len(shifts[k]) > 0 for k in ["shift_1", "shift_2"]
-                ):
-                    st.warning(f"Missing or invalid shift data for project {project_id}. Using synthetic shift data for demonstration.")
-                    logger.warning(f"Missing or invalid shift data for {project_id}: {shifts.keys() if shifts else 'no shifts key'}")
-                    data[project_id]["shifts"] = {
-                        "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
-                        "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
-                    }
+                for project_id, p in data.items():
+                    baseline = p.get("baseline", {}).get("measurement")
+                    specs = p.get("specs", {})
+                    shifts = p.get("shifts", {})
+                    if not isinstance(baseline, pd.Series) or baseline.empty or not pd.api.types.is_numeric_dtype(baseline):
+                        st.error(f"Invalid baseline measurement in {dataset} for project {project_id}.")
+                        logger.error(f"Invalid baseline measurement for {project_id}: {type(baseline)}")
+                        return False
+                    if not all(k in specs for k in ["lsl", "usl", "target"]):
+                        st.error(f"Missing specification limits in {dataset} for project {project_id}.")
+                        logger.error(f"Missing specs for {project_id}: {specs.keys()}")
+                        return False
+                    if not all(k in shifts for k in ["shift_1", "shift_2"]) or not all(
+                        isinstance(shifts[k], (list, np.ndarray, pd.Series)) and len(shifts[k]) > 0 for k in ["shift_1", "shift_2"]
+                    ):
+                        st.warning(f"Missing or invalid shift data for project {project_id}. Using synthetic shift data for demonstration.")
+                        logger.warning(f"Missing or invalid shift data for {project_id}: {shifts.keys() if shifts else 'no shifts key'}")
+                        data[project_id]["shifts"] = {
+                            "shift_1": pd.Series(np.random.normal(loc=10, scale=1, size=50)),
+                            "shift_2": pd.Series(np.random.normal(loc=10.5, scale=1, size=50))
+                        }
         else:
-            if data.empty or (required_cols and not all(col in data.columns for col in required_cols)):
+            if isinstance(data, pd.DataFrame) and (data.empty or (required_cols and not all(col in data.columns for col in required_cols))):
                 st.error(f"Invalid or missing {dataset}.")
                 logger.error(f"Invalid {dataset}: {data.columns.tolist() if not data.empty else 'empty'}")
                 return False
@@ -128,6 +159,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
     try:
         projects = ssm.get_data("dmaic_projects")
         dmaic_data = ssm.get_data("dmaic_project_data")
+        logger.info(f"dmaic_project_data type: {type(dmaic_data)}")
         if not projects:
             st.error("No projects available.")
             logger.error("No projects found in dmaic_projects")
@@ -154,11 +186,19 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.error("Project team must be a list of members.")
             logger.error(f"Invalid team format for project {selected_id}: {project['team']}")
             return
-        project_data = dmaic_data.get(selected_id)
-        if not isinstance(project_data, dict):
-            st.error(f"No data found for project {selected_id}.")
-            logger.error(f"No project_data for ID {selected_id}: {project_data}")
-            return
+        # Handle dmaic_project_data as DataFrame or dict
+        if isinstance(dmaic_data, pd.DataFrame):
+            if selected_id not in dmaic_data.index:
+                st.error(f"No data found for project {selected_id} in dmaic_project_data.")
+                logger.error(f"No project_data for ID {selected_id} in DataFrame")
+                return
+            project_data = dmaic_data.loc[selected_id].to_dict()
+        else:
+            project_data = dmaic_data.get(selected_id)
+            if not isinstance(project_data, dict):
+                st.error(f"No data found for project {selected_id}.")
+                logger.error(f"No project_data for ID {selected_id}: {project_data}")
+                return
 
         phase_tabs = st.tabs(["**✅ DEFINE**", "**📏 MEASURE**", "**🔍 ANALYZE**", "**💡 IMPROVE**", "**🛡️ CONTROL**"])
 
