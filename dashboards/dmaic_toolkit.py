@@ -239,7 +239,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         }
                         return colors.get(val, '')
                     try:
-                        st.dataframe(raci_df.style.applymap(color_raci), use_container_width=True)
+                        st.dataframe(raci_df.style.map(color_raci), use_container_width=True)
                     except Exception as e:
                         st.error("Failed to render RACI matrix.")
                         logger.error("RACI matrix rendering failed: %s", e, exc_info=True)
@@ -349,7 +349,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             st.markdown("---")
             st.markdown("#### Data-Driven Analysis & Root Cause Verification")
             if "shifts" not in project_data or not all(key in project_data["shifts"] for key in ["shift_1", "shift_2"]):
-                st.error(f"No valid shift data for project {selected_id}.")
+                st.error(f"No valid shift data for project {selected_id}. Please provide shift data to enable hypothesis testing.")
                 logger.error(f"Missing shift data for {selected_id}")
             else:
                 ht_shifts = project_data["shifts"]
@@ -412,7 +412,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                         not isinstance(X, (list, np.ndarray, pd.Series)) or
                         not isinstance(y, (list, np.ndarray, pd.Series)) or
                         len(X) == 0 or len(y) == 0):
-                        st.warning("Regression data missing or invalid. Using synthetic data for demonstration.")
+                        st.warning(f"Regression data missing or invalid for project {selected_id}. Using synthetic data for demonstration. Please provide valid X and y data for accurate analysis.")
                         logger.warning("Regression data missing or invalid for project %s: X=%s, y=%s", selected_id, type(X), type(y))
                         X = np.random.rand(50) * 10
                         y = 0.5 * X + np.random.randn(50) * 2 + 3
@@ -469,7 +469,7 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
                     pugh_df = pd.DataFrame(pugh_data).set_index('Criteria')
                     pugh_df.loc['Total Score'] = pugh_df.sum()
                     try:
-                        st.dataframe(pugh_df.style.applymap(lambda x: 'background-color: #90ee90' if x > 0 else 'background-color: #ffcccb' if x < 0 else ''), use_container_width=True)
+                        st.dataframe(pugh_df.style.map(lambda x: 'background-color: #90ee90' if x > 0 else 'background-color: #ffcccb' if x < 0 else ''), use_container_width=True)
                         st.success("**Decision:** Solution A (New Fixture) is chosen.")
                     except Exception as e:
                         st.error("Failed to render Pugh Matrix.")
@@ -498,13 +498,13 @@ def render_dmaic_toolkit(ssm: SessionStateManager) -> None:
             improved_data = project_data.get("improved", {}).get("measurement")
             if not isinstance(improved_data, pd.Series) or improved_data.empty:
                 if 'capability_metrics' not in locals() or not capability_metrics:
-                    st.error("Cannot generate synthetic data: baseline capability metrics missing.")
+                    st.error("Cannot generate synthetic data: baseline capability metrics missing. Please provide improved process data.")
                     logger.error("Baseline capability metrics missing for synthetic data generation")
                 else:
                     improved_mean = specs["target"]
                     improved_std = capability_metrics.get('sigma', 1.0) / 2
                     improved_process = pd.Series(np.random.normal(loc=improved_mean, scale=improved_std, size=200))
-                    st.warning("Improved process data missing. Using synthetic data for demonstration.")
+                    st.warning(f"Improved process data missing for project {selected_id}. Using synthetic data for demonstration. Please provide valid improved process data.")
                     logger.warning("Improved process data missing for project %s", selected_id)
             else:
                 improved_process = improved_data
