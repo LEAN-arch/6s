@@ -21,6 +21,7 @@ SME Definitive Overhaul:
   and fully restored.
 """
 
+import io
 import logging
 import pandas as pd
 import numpy as np
@@ -145,6 +146,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
 
  # ==================== TAB 3: DRIVER ANALYSIS (Modern API Implementation) ====================
+# ==================== TAB 3: DRIVER ANALYSIS (Final Hybrid Solution) ====================
 with tabs[2]:
     st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
     with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
@@ -162,24 +164,13 @@ with tabs[2]:
     if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
     else:
         try:
-            # --- Data Preparation & Model Training (remains the same) ---
+            # --- Data Preparation & Model Training ---
             features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
             X = df_pred[features]
             y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
             X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
             model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
             explainer = shap.TreeExplainer(model)
-            
-            # --- SME's DEFINITIVE FIX: Use the modern SHAP Explanation object ---
-            # This is the key change. Instead of getting raw values, we get a rich Explanation object.
-            # This object bundles the values and the data, making misalignment impossible.
-            with st.spinner("Calculating SHAP explanations..."):
-                shap_explanations = explainer(X_test)
-
-            # The model internally tracks its classes. "Fail" is 1. We find its index.
-            # This makes the code robust even if the class order changes.
-            fail_class_index = list(model.classes_).index(1)
-            # --- END OF DEFINITIVE FIX ---
 
             # --- Visualization ---
             col1, col2 = st.columns(2)
@@ -190,25 +181,50 @@ with tabs[2]:
 
             with col2:
                 st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                # The summary_plot function is called on a slice of the Explanation object.
-                # It inherently knows about the feature values, names, and SHAP values.
-                # No more passing separate arguments for values and data.
-                fig, ax = plt.subplots()
-                shap.summary_plot(shap_explanations[:, :, fail_class_index], plot_type="dot", show=False)
-                st.pyplot(fig, bbox_inches='tight')
-                plt.clf()
+                with st.spinner("Calculating SHAP explanations..."):
+                    # --- COMPONENT 1: ROBUST DATA SAMPLING & EXPLANATION OBJECT ---
+                    # Sample the test data for performance and stability
+                    n_samples = min(200, len(X_test)) # Use a reasonable sample size
+                    X_test_sample = X_test.sample(n=n_samples, random_state=42)
+                    
+                    # Use the modern API to create a self-contained Explanation object
+                    shap_explanations = explainer(X_test_sample)
+                    
+                    # Find the index for the "Fail" class (which is encoded as 1)
+                    fail_class_index = list(model.classes_).index(1)
+
+                    # --- COMPONENT 2: STATELESS PLOT RENDERING TO BUFFER ---
+                    # Create the plot object
+                    fig, ax = plt.subplots(dpi=150)
+                    # The plot function uses the robust Explanation object
+                    shap.summary_plot(shap_explanations[:,:,fail_class_index], X_test_sample, show=False)
+                    plt.tight_layout()
+                    
+                    # Render the plot to an in-memory buffer
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format="png", bbox_inches="tight")
+                    plt.close(fig) # Explicitly close the figure to free memory
+                    buf.seek(0)
+                
+                # Display the plot from the buffer using st.image
+                st.image(buf, caption="SHAP Summary Plot", use_column_width=True)
 
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("##### Local (Single Prediction) Explanation")
             st.info("Select a specific unit to see why the model made its prediction.")
+            
+            # Recalculate full explanations for the local plot if we sampled earlier
+            with st.spinner("Preparing local explanation..."):
+                 full_shap_explanations = explainer(X_test)
+                 fail_class_index_local = list(model.classes_).index(1)
+
             instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
             
-            # The force plot also becomes simpler and more robust.
-            # We just pass the explanation for the desired instance and class.
-            st_shap(shap.force_plot(shap_explanations[instance_idx, :, fail_class_index]))
+            # The force plot uses the same robust, object-oriented pattern
+            st_shap(shap.force_plot(full_shap_explanations[instance_idx, :, fail_class_index_local]))
             
         except Exception as e:
-            logger.critical(f"A critical error occurred in the Driver Analysis tab with the modern SHAP API: {e}", exc_info=True)
+            logger.critical(f"A critical error occurred in the Driver Analysis tab: {e}", exc_info=True)
             st.error(f"An unexpected error occurred during Driver Analysis. Error: {e}")
     # ==================== TAB 4: PROCESS CONTROL ====================
     with tabs[3]:
