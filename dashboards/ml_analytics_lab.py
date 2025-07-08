@@ -49,23 +49,22 @@ logger = logging.getLogger(__name__)
 
 
 # ---HELPER FNXs
-# --- Helper Functions (Final Solution for Older Streamlit Versions) ---
+# --- Helper Functions (Final Solution for VERY Old Streamlit Versions) ---
 def st_shap(plot, height: int = 200) -> None:
     """
-    Renders SHAP plots in older Streamlit versions by manually creating
-    an iframe inside the st.html call.
+    Renders SHAP plots in very old Streamlit versions by using st.markdown
+    with unsafe_allow_html=True to render a manually created iframe.
     """
     try:
         # 1. Generate the full SHAP plot HTML content.
         shap_html_content = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
 
-        # 2. URL-encode the HTML content. This is crucial to safely embed it
-        #    inside the `srcdoc` attribute of another HTML element (our iframe).
+        # 2. URL-encode the HTML content to safely embed it in the srcdoc attribute.
+        # This step remains crucial.
         encoded_html = urllib.parse.quote(shap_html_content)
 
-        # 3. Construct the final HTML string. This string IS the iframe.
-        #    We set its size here using standard HTML attributes. The encoded
-        #    plot is passed as the source document.
+        # 3. Construct the final HTML string that defines the iframe.
+        # This part of the logic is also correct and remains unchanged.
         iframe_html = f'''
             <iframe
                 srcdoc="{encoded_html}"
@@ -75,13 +74,14 @@ def st_shap(plot, height: int = 200) -> None:
             ></iframe>
         '''
 
-        # 4. Pass this complete, self-contained iframe to st.html.
-        #    We must use unsafe_allow_html=True because we are manually
-        #    injecting an iframe tag, which Streamlit would otherwise sanitize.
-        st.html(iframe_html, unsafe_allow_html=True)
+        # 4. SME's DEFINITIVE FIX: Use st.markdown.
+        # Based on the sequence of errors, this is the only function in this
+        # specific environment that can render raw HTML via the
+        # unsafe_allow_html=True flag.
+        st.markdown(iframe_html, unsafe_allow_html=True)
 
     except Exception as e:
-        logger.error(f"Failed to render SHAP plot via manual iframe injection: {e}", exc_info=True)
+        logger.error(f"Failed to render SHAP plot via st.markdown: {e}", exc_info=True)
         st.error("Unable to render the interactive SHAP force plot.")
 
 def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
