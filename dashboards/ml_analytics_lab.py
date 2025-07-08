@@ -115,119 +115,48 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             except Exception as e: st.error(f"An error occurred in the Predictive Quality tab: {e}")
 
     # ==================== TAB 2: TEST EFFECTIVENESS ====================
-with tabs[1]:
-    st.subheader("Challenge 2: Evaluate the Power of a Go/No-Go Release Test")
-    
-    with st.expander("SME Deep Dive: The ROC Curve"):
-        st.markdown("""... (explanation content preserved) ...""")
-    
-    df_release = ssm.get_data("release_data")
-    
-    if df_release is None or df_release.empty:
-        st.warning("Release test data not available.")
-    else:
-        try:
-            # Data Preparation
-            if 'true_status' not in df_release.columns or 'test_measurement' not in df_release.columns:
-                raise ValueError("Required columns ('true_status', 'test_measurement') not found in dataset")
-                
-            df_release['true_status_numeric'] = df_release['true_status'].apply(
-                lambda x: 1 if x.lower() in ['fail', 'f'] else 0  # More robust string matching
-            )
-            
-            # Calculate ROC metrics
-            fpr, tpr, thresholds = roc_curve(df_release['true_status_numeric'], df_release['test_measurement'])
-            roc_auc = roc_auc_score(df_release['true_status_numeric'], df_release['test_measurement'])
-            
-            # Interactive elements
-            min_val = float(df_release['test_measurement'].min())
-            max_val = float(df_release['test_measurement'].max())
-            default_val = float(np.median(thresholds))  # More meaningful default
-            
-            slider_val = st.slider(
-                "Select Test Cut-off Threshold", 
-                min_val, 
-                max_val, 
-                default_val,
-                format="%.3f",  # Better precision display
-                key="roc_slider",
-                help="Adjust to see how threshold affects test performance"
-            )
-            
-            # Find closest threshold index
-            idx = (np.abs(thresholds - slider_val)).argmin()
-            
-            # Create ROC Curve plot
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=fpr, 
-                y=tpr, 
-                mode='lines', 
-                name=f'ROC Curve (AUC = {roc_auc:.3f})',
-                line=dict(width=3)
-            ))
-            fig.add_trace(go.Scatter(
-                x=[fpr[idx]], 
-                y=[tpr[idx]], 
-                mode='markers', 
-                marker=dict(size=15, color='red'), 
-                name=f'Threshold: {slider_val:.3f}'
-            ))
-            fig.update_layout(
-                title="<b>Interactive ROC Analysis</b>",
-                xaxis_title="False Positive Rate (1 - Specificity)",
-                yaxis_title="True Positive Rate (Sensitivity)",
-                hovermode='x unified'
-            )
-            
-            # Calculate performance metrics
-            y_pred = (df_release['test_measurement'] >= slider_val).astype(int)
-            cm = confusion_matrix(df_release['true_status_numeric'], y_pred)
-            tn, fp, fn, tp = cm.ravel()
-            
-            # Calculate additional metrics
-            sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
-            specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
-            ppv = tp / (tp + fp) if (tp + fp) > 0 else 0  # Positive predictive value
-            
-            # Display results
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.plotly_chart(fig, use_container_width=True)
-                
-            with col2:
-                st.metric("Area Under Curve (AUC)", f"{roc_auc:.3f}",
-                          help="Overall measure of test discrimination power")
-                
-                st.metric("Sensitivity (Recall)", f"{sensitivity:.2%}",
-                          help="Ability to correctly identify failing units")
-                
-                st.metric("Specificity", f"{specificity:.2%}",
-                          help="Ability to correctly identify passing units")
-                
-                st.metric("Positive Predictive Value", f"{ppv:.2%}",
-                          help="Probability that a positive result is correct")
-                
-                st.write("**Confusion Matrix at Current Threshold:**")
-                cm_df = pd.DataFrame(
-                    [[f"True Positive: {tp}", f"False Negative: {fn}"], 
-                     [f"False Positive: {fp}", f"True Negative: {tn}"]],
-                    columns=["Predicted: Fail", "Predicted: Pass"],
-                    index=["Actual: Fail", "Actual: Pass"]
-                )
-                st.dataframe(cm_df, use_container_width=True)
-                
-        except Exception as e:
-            st.error(f"Analysis error: {str(e)}")
-            st.error("Please verify your input data contains: "
-                   "'true_status' (Pass/Fail) and 'test_measurement' columns")
+    with tabs[1]:
+        st.subheader("Challenge 2: Evaluate the Power of a Go/No-Go Release Test")
+        with st.expander("SME Deep Dive: The ROC Curve"):
+            st.markdown("""
+             **The Goal:** Quantify how good our final product test is. Does a high measurement value truly indicate a bad batch? This applies to any binary classification test, from a simple rule to a complex ML model.
+             
+             - **Analogy 1 (Example 3): Medical Test.** An ROC curve helps understand the fundamental trade-off: If a doctor makes a test *very sensitive* (catching every sick person), they will inevitably get more *false positives* (telling healthy people they are sick).
+             - **Analogy 2 (Example 4): Spam Filter.** If a spam filter is *too aggressive*, it catches all spam but also puts important emails in the junk folder (false positives). If it's *too lenient*, it lets some spam through (false negatives).
+             - **The AUC (Area Under the Curve)** metric summarizes this entire trade-off into one number. An AUC of 1.0 is a perfect test. An AUC of 0.5 is a useless test (a coin flip).
+             
+             #### Interactive Exploration (Example 5)
+             Use the slider below to pick a "cut-off" value on the test measurement. The plot will show where this point lies on the ROC curve, and the table will show the resulting confusion matrix. This lets you find a practical "sweet spot" that balances catching bad lots with not failing too many good ones.
+             """)
+        df_release = ssm.get_data("release_data")
+        if df_release is None or df_release.empty: st.warning("Release test data not available.")
+        else:
+            try:
+                df_release['true_status_numeric'] = df_release['true_status'].apply(lambda x: 1 if x == 'Fail' else 0)
+                fpr, tpr, thresholds = roc_curve(df_release['true_status_numeric'], df_release['test_measurement'])
+                roc_auc = roc_auc_score(df_release['true_status_numeric'], df_release['test_measurement'])
+                slider_val = st.slider("Select Test Cut-off Threshold", float(df_release['test_measurement'].min()), float(df_release['test_measurement'].max()), float(df_release['test_measurement'].mean()), key="roc_slider")
+                idx = (np.abs(thresholds - slider_val)).argmin()
+                fig = go.Figure(); fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'ROC Curve (AUC = {roc_auc:.3f})')); fig.add_trace(go.Scatter(x=[fpr[idx]], y=[tpr[idx]], mode='markers', marker=dict(size=15, color='red'), name='Current Threshold')); fig.update_layout(title="<b>Interactive ROC Analysis</b>", xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
+                y_pred = (df_release['test_measurement'] >= slider_val).astype(int); cm = confusion_matrix(df_release['true_status_numeric'], y_pred); tn, fp, fn, tp = cm.ravel()
+                col1, col2 = st.columns(2);
+                with col1: st.plotly_chart(fig, use_container_width=True)
+                with col2: st.metric("Test Power (AUC)", f"{roc_auc:.3f}"); st.write("Confusion Matrix at this Threshold:"); cm_df = pd.DataFrame([[f"Caught (TP): {tp}", f"Missed (FN): {fn}"], [f"False Alarm (FP): {fp}", f"Correct (TN): {tn}"]], columns=["Predicted: Fail", "Predicted: Pass"], index=["Actual: Fail", "Actual: Pass"]); st.dataframe(cm_df)
+            except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
 
     # ==================== TAB 3: DRIVER ANALYSIS ====================
     with tabs[2]:
         st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
+            - **Classical: ANOVA (Analysis of Variance)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
+                - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
+            - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
+                - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
+            #### SME Verdict
+            **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
+            """)
         df_pred = ssm.get_data("predictive_quality_data")
         if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
         else:
@@ -252,7 +181,14 @@ with tabs[1]:
     with tabs[3]:
         st.subheader("Challenge 4: Detect Unusual Behavior in a Live Process")
         with st.expander("SME Deep Dive: SPC vs. Isolation Forest"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            - **Classical: SPC Chart** uses historical, stable variation to set +/- 3 sigma control limits.
+                - **Analogy (Example 8): A Security Guard with a Checklist.** "Is anyone running? No. Is anyone shouting? No. Is anyone outside the velvet rope? Yes! Alert!" It's great at catching known rule violations based on its pre-defined Nelson Rules.
+            - **Modern: Isolation Forest** is an unsupervised ML algorithm that learns the "shape" of normal data and flags points that don't conform.
+                - **Analogy (Example 9): A Seasoned Detective.** They have a "feel" for the room. They might notice someone standing too still, or whispering in a corner. They spot things that aren't against the "rules" but are just... weird.
+            #### SME Verdict
+            **SPC** is the non-negotiable standard for **Sustaining Control**. **Isolation Forest** is a powerful **Investigative Tool** to find "unknown unknowns" or monitor complex, multi-variate systems where simple rules don't apply.
+            """)
         df_process = ssm.get_data("process_data")
         if df_process is None or df_process.empty: st.warning("Process data is not available.")
         else:
@@ -271,7 +207,14 @@ with tabs[1]:
     with tabs[4]:
         st.subheader("Challenge 5: Efficiently Find the Best Process 'Recipe'")
         with st.expander("SME Deep Dive: DOE/RSM vs. Bayesian Optimization"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            - **Classical: DOE/RSM** involves pre-planning a grid of experiments. You run all experiments, then fit a model to find the optimum.
+                - **Analogy (Example 10): A Systematic Baker.** They meticulously plan to bake cakes at all combinations of (low/high temp, low/high time). They bake all cakes, taste them, then model the results to declare the best recipe. It's robust, but front-loaded with work.
+            - **Modern: Bayesian Optimization** is a sequential, "smart search" strategy. It uses an ML model to intelligently decide the *single most informative experiment to run next*, balancing exploring uncertain areas with exploiting known good ones.
+                - **Analogy (Example 11): A Master Chef.** They make one batch of sauce, taste it, and think, "Hmm, promising." Based on that, they intelligently decide the next best guess. They learn and adapt after every single experiment, saving time and ingredients.
+            #### SME Verdict
+            **DOE/RSM** is the gold standard for formal, rigorous experimentation. **Bayesian Optimization** is incredibly powerful when experiments are very expensive or time-consuming, as it often finds a near-optimal solution with far fewer experimental runs.
+            """)
         df_opt = ssm.get_data("optimization_data")
         if df_opt is None or df_opt.empty: st.warning("Optimization data is not available.")
         else:
@@ -299,7 +242,14 @@ with tabs[1]:
     with tabs[5]:
         st.subheader("Challenge 6: Discover Hidden Groups or 'Types' of Failures")
         with st.expander("SME Deep Dive: Manual Binning vs. K-Means Clustering"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            - **Classical: Manual Binning / Histograms.** We look at one variable at a time and draw lines based on our expert knowledge. "Failures above 240°C we'll call 'overheating'."
+                - **Analogy (Example 12): Sorting Laundry by Color.** We decide on the categories beforehand: whites, darks, colors. It's simple and based on one dimension.
+            - **Modern: K-Means Clustering.** An unsupervised ML algorithm that looks at all variables simultaneously and mathematically finds the best "centers" (centroids) to partition the data.
+                - **Analogy (Example 13): A Smart Sorting Machine.** It looks at color, fabric type, and item size all at once. It might discover groups you never thought of: "delicate whites," "heavy-duty darks," and "colorful cottons." It finds the natural, multi-dimensional groupings in the data.
+            #### SME Verdict
+            **Manual Binning** is useful for simple, one-dimensional problems. **K-Means Clustering** is exceptionally powerful for uncovering hidden, multi-dimensional patterns in failure data, potentially revealing distinct root causes (e.g., "Failure Mode A" is high-temp/low-pressure, while "Failure Mode B" is low-temp/high-pressure) that are impossible to see one variable at a time.
+            """)
         df_clust = ssm.get_data("failure_clustering_data")
         if df_clust is None or df_clust.empty: st.warning("Clustering data is not available.")
         else:
