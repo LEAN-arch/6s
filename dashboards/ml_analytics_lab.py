@@ -52,10 +52,18 @@ def st_shap(plot, height: int = None) -> None:
     """Render SHAP plots in Streamlit with error handling."""
     try:
         shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
-        st.components.v1.html(shap_html, height=height)
+        
+        # SME FIX: The `st.components.v1.html` path is deprecated/removed in modern Streamlit.
+        # The correct, modern, and stable API call is `st.html()`.
+        # This makes the application resilient to Streamlit version updates.
+        st.html(shap_html, height=height)
     except Exception as e:
-        logger.error(f"Failed to render SHAP plot: {e}")
-        st.error("Unable to render SHAP plot. Please check the SHAP library installation.")
+        # The error log will now provide the full traceback for better debugging.
+        logger.error(f"Failed to render SHAP plot via st.html: {e}", exc_info=True)
+        st.error(
+            "Unable to render the interactive SHAP force plot. "
+            "This may be due to a library compatibility issue."
+        )
 
 def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     """Creates the UI for the ML & Analytics Lab comparative workspace."""
