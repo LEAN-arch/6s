@@ -20,7 +20,7 @@ SME Definitive Overhaul:
 - All rich educational content, analogies, and visualizations have been preserved
   and fully restored.
 """
-
+import urllib.parse
 import io
 import logging
 import pandas as pd
@@ -49,25 +49,39 @@ logger = logging.getLogger(__name__)
 
 
 # ---HELPER FNXs
+# --- Helper Functions (Final Solution for Older Streamlit Versions) ---
 def st_shap(plot, height: int = 200) -> None:
     """
-    Renders SHAP plots in Streamlit using st.iframe for robust height control.
-    This is the most compatible method for environments where st.html() lacks
-    a height argument. A default height is provided for the force plot.
+    Renders SHAP plots in older Streamlit versions by manually creating
+    an iframe inside the st.html call.
     """
     try:
-        # Standard SHAP HTML generation. This part is correct.
-        shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
+        # 1. Generate the full SHAP plot HTML content.
+        shap_html_content = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
 
-        # SME's DEFINITIVE SOLUTION: Use st.iframe.
-        # This component is explicitly designed to embed HTML content within a
-        # sandboxed frame of a specific size. It takes the HTML string via the
-        # `srcdoc` argument and controls the container size with the `height`
-        # argument. This is the correct, official way to achieve our goal.
-        st.iframe(srcdoc=shap_html, height=height, scrolling=True)
+        # 2. URL-encode the HTML content. This is crucial to safely embed it
+        #    inside the `srcdoc` attribute of another HTML element (our iframe).
+        encoded_html = urllib.parse.quote(shap_html_content)
+
+        # 3. Construct the final HTML string. This string IS the iframe.
+        #    We set its size here using standard HTML attributes. The encoded
+        #    plot is passed as the source document.
+        iframe_html = f'''
+            <iframe
+                srcdoc="{encoded_html}"
+                width="100%"
+                height="{height}px"
+                style="border:none; scrolling: auto;"
+            ></iframe>
+        '''
+
+        # 4. Pass this complete, self-contained iframe to st.html.
+        #    We must use unsafe_allow_html=True because we are manually
+        #    injecting an iframe tag, which Streamlit would otherwise sanitize.
+        st.html(iframe_html, unsafe_allow_html=True)
 
     except Exception as e:
-        logger.error(f"Failed to render SHAP plot via st.iframe: {e}", exc_info=True)
+        logger.error(f"Failed to render SHAP plot via manual iframe injection: {e}", exc_info=True)
         st.error("Unable to render the interactive SHAP force plot.")
 
 def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
