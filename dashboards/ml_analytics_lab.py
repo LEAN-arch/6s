@@ -145,86 +145,86 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2: st.metric("Test Power (AUC)", f"{roc_auc:.3f}"); st.write("Confusion Matrix at this Threshold:"); cm_df = pd.DataFrame([[f"Caught (TP): {tp}", f"Missed (FN): {fn}"], [f"False Alarm (FP): {fp}", f"Correct (TN): {tn}"]], columns=["Predicted: Fail", "Predicted: Pass"], index=["Actual: Fail", "Actual: Pass"]); st.dataframe(cm_df)
             except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
 
- # ==================== TAB 3: DRIVER ANALYSIS (Modern API Implementation) ====================
-      with tabs[2]:
-          st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
-          with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
-              # ... (SME explanation remains unchanged) ...
-              st.markdown("""
-              **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
-              - **Classical: Analysis of Variance (ANOVA)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
-                  - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
-              - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
-                  - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
-              #### SME Verdict
-              **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
-              """)
-          df_pred = ssm.get_data("predictive_quality_data")
-          if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
-          else:
-              try:
-                  # --- Data Preparation & Model Training ---
-                  features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
-                  X = df_pred[features]
-                  y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
-                  X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-                  model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-                  explainer = shap.TreeExplainer(model)
-      
-                  # --- Visualization ---
-                  col1, col2 = st.columns(2)
-                  with col1:
-                      st.markdown("###### Classical: Average Effect (Box Plot)")
-                      fig_box = px.box(df_pred, x='final_qc_outcome', y='in_process_pressure', title='Pressure by Outcome')
-                      st.plotly_chart(fig_box, use_container_width=True)
-      
-                  with col2:
-                      st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                      with st.spinner("Calculating SHAP explanations..."):
-                          # --- COMPONENT 1: ROBUST DATA SAMPLING & EXPLANATION OBJECT ---
-                          # Sample the test data for performance and stability
-                          n_samples = min(200, len(X_test)) # Use a reasonable sample size
-                          X_test_sample = X_test.sample(n=n_samples, random_state=42)
-                          
-                          # Use the modern API to create a self-contained Explanation object
-                          shap_explanations = explainer(X_test_sample)
-                          
-                          # Find the index for the "Fail" class (which is encoded as 1)
-                          fail_class_index = list(model.classes_).index(1)
-      
-                          # --- COMPONENT 2: STATELESS PLOT RENDERING TO BUFFER ---
-                          # Create the plot object
-                          fig, ax = plt.subplots(dpi=150)
-                          # The plot function uses the robust Explanation object
-                          shap.summary_plot(shap_explanations[:,:,fail_class_index], X_test_sample, show=False)
-                          plt.tight_layout()
-                          
-                          # Render the plot to an in-memory buffer
-                          buf = io.BytesIO()
-                          fig.savefig(buf, format="png", bbox_inches="tight")
-                          plt.close(fig) # Explicitly close the figure to free memory
-                          buf.seek(0)
-                      
-                      # Display the plot from the buffer using st.image
-                      st.image(buf, caption="SHAP Summary Plot", use_column_width=True)
-      
-                  st.markdown("<hr>", unsafe_allow_html=True)
-                  st.markdown("##### Local (Single Prediction) Explanation")
-                  st.info("Select a specific unit to see why the model made its prediction.")
-                  
-                  # Recalculate full explanations for the local plot if we sampled earlier
-                  with st.spinner("Preparing local explanation..."):
-                       full_shap_explanations = explainer(X_test)
-                       fail_class_index_local = list(model.classes_).index(1)
-      
-                  instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
-                  
-                  # The force plot uses the same robust, object-oriented pattern
-                  st_shap(shap.force_plot(full_shap_explanations[instance_idx, :, fail_class_index_local]))
-                  
-              except Exception as e:
-                  logger.critical(f"A critical error occurred in the Driver Analysis tab: {e}", exc_info=True)
-                  st.error(f"An unexpected error occurred during Driver Analysis. Error: {e}")
+    # ==================== TAB 3: DRIVER ANALYSIS (Modern API Implementation) ====================
+    with tabs[2]:
+        st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
+        with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
+            st.markdown("""
+            **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
+            - **Classical: Analysis of Variance (ANOVA)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
+                - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
+            - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
+                - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
+            #### SME Verdict
+            **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
+            """)
+        df_pred = ssm.get_data("predictive_quality_data")
+        if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
+        else:
+            try:
+                # --- Data Preparation & Model Training ---
+                features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
+                X = df_pred[features]
+                y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
+                X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+                model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
+                explainer = shap.TreeExplainer(model)
+    
+                # --- Visualization ---
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("###### Classical: Average Effect (Box Plot)")
+                    fig_box = px.box(df_pred, x='final_qc_outcome', y='in_process_pressure', title='Pressure by Outcome')
+                    st.plotly_chart(fig_box, use_container_width=True)
+    
+                with col2:
+                    st.markdown("###### Modern: Global Explanation (SHAP Summary)")
+                    with st.spinner("Calculating SHAP explanations..."):
+                        # --- COMPONENT 1: ROBUST DATA SAMPLING & EXPLANATION OBJECT ---
+                        # Sample the test data for performance and stability
+                        n_samples = min(200, len(X_test)) # Use a reasonable sample size
+                        X_test_sample = X_test.sample(n=n_samples, random_state=42)
+                        
+                        # Use the modern API to create a self-contained Explanation object
+                        shap_explanations = explainer(X_test_sample)
+                        
+                        # Find the index for the "Fail" class (which is encoded as 1)
+                        fail_class_index = list(model.classes_).index(1)
+    
+                        # --- COMPONENT 2: STATELESS PLOT RENDERING TO BUFFER ---
+                        # Create the plot object
+                        fig, ax = plt.subplots(dpi=150)
+                        # The plot function uses the robust Explanation object
+                        shap.summary_plot(shap_explanations[:,:,fail_class_index], X_test_sample, show=False)
+                        plt.tight_layout()
+                        
+                        # Render the plot to an in-memory buffer
+                        buf = io.BytesIO()
+                        fig.savefig(buf, format="png", bbox_inches="tight")
+                        plt.close(fig) # Explicitly close the figure to free memory
+                        buf.seek(0)
+                    
+                    # Display the plot from the buffer using st.image
+                    st.image(buf, caption="SHAP Summary Plot", use_column_width=True)
+    
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("##### Local (Single Prediction) Explanation")
+                st.info("Select a specific unit to see why the model made its prediction.")
+                
+                # Recalculate full explanations for the local plot if we sampled earlier
+                with st.spinner("Preparing local explanation..."):
+                     full_shap_explanations = explainer(X_test)
+                     fail_class_index_local = list(model.classes_).index(1)
+    
+                instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
+                
+                # The force plot uses the same robust, object-oriented pattern
+                st_shap(shap.force_plot(full_shap_explanations[instance_idx, :, fail_class_index_local]))
+                
+            except Exception as e:
+                logger.critical(f"A critical error occurred in the Driver Analysis tab: {e}", exc_info=True)
+                st.error(f"An unexpected error occurred during Driver Analysis. Error: {e}")
+                
     # ==================== TAB 4: PROCESS CONTROL ====================
     with tabs[3]:
         st.subheader("Challenge 4: Detect Unusual Behavior in a Live Process")
