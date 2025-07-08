@@ -145,7 +145,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
 
     # ==================== TAB 3: DRIVER ANALYSIS ====================
-# ==================== TAB 3: DRIVER ANALYSIS (Corrected) ====================
+# ==================== TAB 3: DRIVER ANALYSIS (Bulletproof Implementation) ====================
 with tabs[2]:
     st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
     with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
@@ -163,36 +163,67 @@ with tabs[2]:
     if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
     else:
         try:
+            # --- Data Preparation ---
+            features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
+            X = df_pred[features]
+            y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
+            
+            # This split is correct and necessary for valid modeling.
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+
+            # --- Model Training ---
+            # Train the model. It's robust to receiving a DataFrame.
+            model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
+            explainer = shap.TreeExplainer(model)
+
+            # --- SME's ROBUST SHAP WORKFLOW ---
+            # Step 1: Create an explicit NumPy array from the test set. This is our 'source of truth'.
+            # The .values attribute is now deprecated in favor of .to_numpy() for clarity.
+            X_test_np = X_test.to_numpy()
+
+            # Step 2: Calculate SHAP values using the NumPy array. The output `shap_values_np` will have
+            # a shape and row order that is guaranteed to match `X_test_np`.
+            shap_values_np = explainer.shap_values(X_test_np)
+
+            # Step 3: For plotting, reconstruct a DataFrame from our NumPy 'source of truth'.
+            # This new DataFrame has a simple RangeIndex (0, 1, 2...) that perfectly aligns with the
+            # rows of `shap_values_np`. This makes any misalignment impossible.
+            X_test_for_plot = pd.DataFrame(X_test_np, columns=X_test.columns)
+            # --- END OF ROBUST WORKFLOW ---
+
+            # --- Visualization ---
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown("###### Classical: Average Effect (Box Plot)"); fig_box = px.box(df_pred, x='final_qc_outcome', y='in_process_pressure', title='Pressure by Outcome'); st.plotly_chart(fig_box, use_container_width=True)
+                st.markdown("###### Classical: Average Effect (Box Plot)")
+                fig_box = px.box(df_pred, x='final_qc_outcome', y='in_process_pressure', title='Pressure by Outcome')
+                st.plotly_chart(fig_box, use_container_width=True)
+
             with col2:
                 st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                with st.spinner("Calculating SHAP values..."):
-                    features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']; X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
-                    X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-                    
-                    # --- SME FIX STARTS HERE ---
-                    # Fit model on the DataFrame directly. Scikit-learn handles it gracefully.
-                    model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
-                    explainer = shap.TreeExplainer(model)
-                    
-                    # CRITICAL FIX: Calculate SHAP values on the DataFrame (X_test) itself, not its NumPy representation (X_test.values).
-                    # This preserves the index and ensures alignment with the data passed to the plot function.
-                    shap_values = explainer.shap_values(X_test)
-                    # --- SME FIX ENDS HERE ---
+                # Step 4: Use the reconstructed, perfectly aligned data for the plot.
+                fig, ax = plt.subplots()
+                shap.summary_plot(shap_values_np[1], X_test_for_plot, plot_type="dot", show=False)
+                st.pyplot(fig, bbox_inches='tight')
+                plt.clf() # Clear the figure to prevent state leakage in Streamlit reruns.
 
-                # Now, the shap_values matrix and the X_test DataFrame are perfectly aligned.
-                fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
-            
-            st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Local (Single Prediction) Explanation")
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown("##### Local (Single Prediction) Explanation")
             st.info("Select a specific unit to see why the model made its prediction.")
             instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
             
-            # For the force plot, we use the same aligned data.
-            st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test.iloc[instance_idx,:], link="logit"))
-        
-        except Exception as e: st.error(f"An error occurred during Driver Analysis: {e}")
+            # The force plot explains a single instance. Using .iloc provides the integer-location
+            # row from the original shuffled DataFrame, which corresponds to the same row in our NumPy arrays.
+            # This is safe and correct.
+            st_shap(shap.force_plot(
+                explainer.expected_value[1],
+                shap_values_np[1][instance_idx, :],
+                X_test.iloc[instance_idx, :], # Use original X_test here for correct feature values display
+                link="logit"
+            ))
+            
+        except Exception as e:
+            logger.critical(f"A critical error occurred in the Driver Analysis tab: {e}", exc_info=True)
+            st.error(f"An unexpected error occurred during Driver Analysis. This is a critical issue. Error: {e}")
 
     # ==================== TAB 4: PROCESS CONTROL ====================
     with tabs[3]:
