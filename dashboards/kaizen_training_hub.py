@@ -75,6 +75,33 @@ def get_overhauled_training_data():
     """Generates a comprehensive, academic-grade training library."""
     return [
         {
+            "id": "KZN-04", "title": "Invoice Processing Lead Time Reduction", "site": "Corporate HQ", "date": "2025-07-20",
+            "problem_background": "The average lead time from invoice receipt to payment approval is 18 days, causing late payment fees and straining supplier relationships. The goal was to reduce this to <5 days by eliminating non-value-added steps.",
+            "analysis_and_countermeasures": """
+            - **Analysis:** A detailed process map and swimlane diagram revealed significant 'waiting' waste. 80% of the lead time was spent in queues awaiting manual review, data entry into three separate systems, and manager approval.
+            - **Countermeasures Implemented:**
+                1.  **Eliminated Redundant Data Entry:** Utilized robotic process automation (RPA) to sync data between systems after initial entry.
+                2.  **Established Standard Work:** Created a clear policy for approval thresholds, empowering clerks to approve payments below $5,000 without manager sign-off.
+                3.  **Visual Management:** Implemented a digital Kanban board (To Do, In Progress, Done) for full visibility of the invoice workload.
+            """,
+            "quantified_results": "Reduced average lead time from 18 days to 3.5 days. Eliminated all late payment fees in the first quarter post-implementation, saving an estimated $120k annually.",
+            "key_insight": "Lean principles are not just for the factory floor. Transactional processes are often filled with the most 'hidden' waste, offering huge opportunities for improvement."
+        },
+        {
+            "id": "KZN-03", "title": "Root Cause Analysis (RCA) of Intermittent Sensor Failures", "site": "Shanghai, CN", "date": "2025-07-01",
+            "problem_background": "The final test stage for the Affiniti Ultrasound system was experiencing a 4% failure rate due to intermittent 'Signal Lost' errors from a key pressure sensor, causing costly rework and diagnostic time.",
+            "analysis_and_countermeasures": """
+            - **Analysis:** An Ishikawa (Fishbone) diagram was used to brainstorm potential causes. The '5 Whys' technique was then applied to the most likely cause, 'Incorrect Connector Seating'.
+                1. **Why?** The connector was not fully seated.
+                2. **Why?** The operator could not get enough leverage.
+                3. **Why?** The access angle was awkward.
+                4. **Why?** A new bracket was installed in a previous update.
+                5. **Why? (Root Cause)** The bracket design did not account for tool clearance for the sensor connector.
+            - **Countermeasure Implemented:** A cross-functional team of engineering and manufacturing redesigned the bracket with an access cutout. A torque-limiting screwdriver with an audible 'click' was also introduced as a Poka-Yoke.
+            """,
+            "quantified_results": "Reduced the specific 'Signal Lost' failure rate from 4% to 0.1% within one week of implementation. Rework costs were reduced by an estimated $250k annually.",
+            "key_insight": "Technical problems are often symptoms of process or design flaws. Persistently asking 'Why' moves the team beyond blaming components or people to fixing the underlying system."
+        },          
             "id": "TRN-101",
             "title": "A3 Thinking: The Art of Problem Solving on a Single Page",
             "type": "eLearning",
@@ -124,6 +151,18 @@ def get_overhauled_training_data():
                 "Establish a 30-day follow-up plan to ensure sustainability."
             ],
             "recommended_reading": "'Kaizen: The Key to Japan's Competitive Success' by Masaaki Imai"
+        },
+        {
+            "id": "TRN-104", "title": "Failure Mode and Effects Analysis (FMEA)", "type": "eLearning", "duration_hr": 3.0, "target_audience": "Engineering, R&D, Quality", "link": "#", "icon": "🛡️",
+            "description": "Learn to proactively identify and mitigate risks in product and process design. This module teaches the systematic approach of FMEA to anticipate potential failures, assess their impact, and implement robust controls before problems reach the customer.",
+            "learning_objectives": ["Distinguish between Design FMEAs and Process FMEAs.", "Calculate Risk Priority Numbers (RPN).", "Develop effective detection and prevention controls.", "Integrate FMEA into the product development lifecycle."],
+            "recommended_reading": "'The FMEA Pocket Handbook' by D. H. Stamatis"
+        },
+        {
+            "id": "TRN-105", "title": "Value Stream Mapping (VSM)", "type": "Workshop Slides", "duration_hr": 6.0, "target_audience": "Operations, CI Leads, Management", "link": "#", "icon": "🌊",
+            "description": "This workshop teaches you how to see the flow of value and, more importantly, the flow of waste. Learn to create current-state and future-state maps that visualize not just material flow, but information flow, to design truly lean systems from end to end.",
+            "learning_objectives": ["Identify a value stream and its product family.", "Calculate key metrics like Lead Time, Process Time, and Process Cycle Efficiency.", "Draw current-state and future-state maps using standard iconography.", "Develop a Kaizen-based implementation plan."],
+            "recommended_reading": "'Learning to See' by Mike Rother and John Shook"
         }
     ]
 
@@ -131,30 +170,41 @@ def get_glossary_content():
     """Generates the content for the methodologies and terminology glossary."""
     return {
         "Lean Principles": [
+            {"term": "Takt Time", "definition": "The rate at which a finished product needs to be completed to meet customer demand. It is the 'heartbeat' of a lean system.", "formula": r"Takt\ Time = \frac{\text{Available Production Time per Day}}{\text{Customer Demand per Day}}"},
             {"term": "Gemba (現場)", "definition": "Japanese for 'the real place.' It refers to the location where value is created, such as the factory floor or a service desk."},
             {"term": "Kaizen (改善)", "definition": "A strategy of 'Continuous Improvement' where small, ongoing, positive changes are made to a process. It emphasizes employee involvement and a culture of incremental enhancement."},
+            {"term": "Muda (無駄), Mura (斑), Muri (無理)", "definition": "The '3 M's' of waste in the Toyota Production System. **Muda:** Non-value-added waste. **Mura:** Unevenness or irregularity. **Muri:** Overburdening equipment or operators."},
             {"term": "Muda (無駄)", "definition": "Japanese for 'waste.' It refers to any activity that consumes resources but creates no value for the customer. The 7 classic wastes are: Transport, Inventory, Motion, Waiting, Overproduction, Over-processing, and Defects (TIMWOOD)."},
+            {"term": "Jidoka (自働化)", "definition": "Autonomation or 'automation with a human touch.' The principle of designing equipment to stop automatically and signal immediately when a problem occurs, preventing the mass production of defects."},
+            {"term": "Heijunka (平準化)", "definition": "Production leveling. The process of smoothing the type and quantity of production over a fixed period. This reduces Mura (unevenness) and minimizes inventory."},
+            {"term": "Kanban (看板)", "definition": "A scheduling system for lean manufacturing and just-in-time manufacturing (JIT). It is a visual signal (e.g., a card) that triggers an action, such as replenishing a part."},
             {"term": "Poka-Yoke (ポカヨケ)", "definition": "A 'mistake-proofing' mechanism. Any technique in a process that helps to avoid errors by preventing, correcting, or drawing attention to them as they occur."},
             {"term": "Value Stream Mapping (VSM)", "definition": "A flowchart method used to visualize, analyze, and improve all the steps in a product delivery process, from raw materials to the customer. It helps identify and eliminate waste (Muda)."},
             {"term": "5S", "definition": "A workplace organization method based on five Japanese words: Seiri (Sort), Seiton (Set in Order), Seisō (Shine), Seiketsu (Standardize), and Shitsuke (Sustain)."}
         ],
         "Six Sigma Concepts": [
             {"term": "DMAIC", "definition": "The core data-driven improvement cycle: **D**efine the problem, **M**easure key aspects of the current process, **A**nalyze the data to investigate root causes, **I**mprove the process, and **C**ontrol the future state."},
-            {"term": "DPMO (Defects Per Million Opportunities)", "definition": "A key metric for process performance. It represents the number of defects in a process per one million opportunities. A Six Sigma process aims for 3.4 DPMO."},
-            {"term": "Process Capability (Cp & Cpk)", "definition": "A measure of how well a process is able to produce output that meets customer specifications. **Cp** measures the potential capability, assuming the process is perfectly centered. **Cpk** measures the actual capability, accounting for any off-center performance."},
+            {"term": "DPMO (Defects Per Million Opportunities)", "definition": "A key metric for process performance. It represents the number of defects in a process per one million opportunities. A Six Sigma process aims for 3.4 DPMO.", "formula": r"DPMO = \frac{\text{Number of Defects}}{\text{Number of Units} \times \text{Opportunities per Unit}} \times 1,000,000"},
+            {"term": "Process Capability (Cp)", "definition": "Measures the potential capability of a process, assuming it is perfectly centered between the specification limits. It answers: 'Is the process spread narrow enough?'", "formula": r"C_p = \frac{USL - LSL}{6\sigma}"},
+            {"term": "Process Capability (Cpk)", "definition": "Measures the actual capability of a process, accounting for its centering. It represents the 'worst-case' side of the process distribution. A Cpk of >1.33 is often a minimum target.", "formula": r"C_{pk} = \min\left(\frac{USL - \mu}{3\sigma}, \frac{\mu - LSL}{3\sigma}\right)"},
             {"term": "COPQ (Cost of Poor Quality)", "definition": "The total financial loss incurred from producing defective products or services. Includes internal failure costs (scrap, rework) and external failure costs (warranty claims, returns)."},
             {"term": "Voice of the Customer (VOC)", "definition": "The process of capturing customer expectations, preferences, and aversions. The VOC is translated into Critical-to-Quality (CTQ) requirements for the process."}
+            {"term": "Rolled Throughput Yield (RTY)", "definition": "The probability that a multi-step process will produce a defect-free unit. It is the product of the First Time Yields (FTY) of each process step.", "formula": r"RTY = FTY_1 \times FTY_2 \times \dots \times FTY_n"},
         ],
         "Statistical & Analytical Methods": [
+            {"term": "Control Chart Limits", "definition": "The horizontal lines on a control chart (UCL/LCL) that represent the 'voice of the process.' They are calculated from the process data and typically set at ±3 standard deviations from the center line.", "formula": r"UCL/LCL = \mu \pm 3\sigma"},
             {"term": "Hypothesis Testing", "definition": "A formal statistical procedure used to accept or reject a claim about a process or population based on sample data. It involves a Null Hypothesis (H₀, the status quo) and an Alternative Hypothesis (Hₐ)."},
             {"term": "p-value", "definition": "The probability of obtaining test results at least as extreme as the results actually observed, assuming the null hypothesis is correct. A small p-value (typically ≤ 0.05) indicates strong evidence against the null hypothesis."},
             {"term": "ANOVA (Analysis of Variance)", "definition": "A statistical test used to determine whether there are any statistically significant differences between the means of two or more independent groups."},
+            {"term": "Confidence Interval", "definition": "A range of values, derived from sample statistics, that is likely to contain the value of an unknown population parameter. A 95% confidence interval means we are 95% confident the true population mean lies within that range."},
+            {"term": "Gage R&R (Repeatability & Reproducibility)", "definition": "A statistical study to evaluate the precision of a measurement system. **Repeatability** is the variation from the same operator using the same tool. **Reproducibility** is the variation between different operators using the same tool."},
             {"term": "Regression Analysis", "definition": "A set of statistical processes for estimating the relationships between a dependent variable (the 'output' or 'Y') and one or more independent variables (the 'inputs' or 'X's')."},
             {"term": "Design of Experiments (DOE)", "definition": "A systematic method to determine the relationship between factors affecting a process and the output of that process. Used to find the optimal 'recipe' for a process with minimal experimental runs."}
         ],
         "AI/ML for Operations": [
             {"term": "Supervised Learning", "definition": "A type of machine learning where the model learns from data that has been manually labeled with the correct outcomes. Analogy: Learning with an 'answer key.' (e.g., training a model on historical data of 'Pass' vs. 'Fail' parts)."},
             {"term": "Unsupervised Learning", "definition": "A type of machine learning where the model works on its own to discover patterns and information in unlabeled data. Analogy: Finding hidden groups without an answer key. (e.g., K-Means clustering to find different failure modes)."},
+            {"term": "Isolation Forest", "definition": "An unsupervised algorithm excellent for anomaly detection. It works by 'isolating' outliers, which are easier to separate from the main data cluster."},
             {"term": "Random Forest", "definition": "A powerful supervised learning algorithm that is an 'ensemble' of many individual decision trees. It averages their predictions to produce a more accurate and stable result. Excellent for predictive quality tasks."},
             {"term": "SHAP (SHapley Additive exPlanations)", "definition": "A game-theoretic approach used to explain the output of any machine learning model. It connects optimal credit allocation with local explanations to understand *why* a model made a specific prediction for a single instance."}
         ]
