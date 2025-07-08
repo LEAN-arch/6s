@@ -145,43 +145,54 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
 
     # ==================== TAB 3: DRIVER ANALYSIS ====================
-    with tabs[2]:
-        st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
-        with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
-            st.markdown("""
-            **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
-            - **Classical: Analysis of Variance (ANOVA)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
-                - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
-            - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
-                - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
-            #### SME Verdict
-            **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
-            """)
-        df_pred = ssm.get_data("predictive_quality_data")
-        if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
-        else:
-            try:
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("###### Classical: Average Effect (Box Plot)"); fig_box = px.box(df_pred, x='final_qc_outcome', y='in_process_pressure', title='Pressure by Outcome'); st.plotly_chart(fig_box, use_container_width=True)
-                with col2:
-                    st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                    with st.spinner("Calculating SHAP values..."):
-                        features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']; X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
-                        X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-                        
-                        # Definitive Fix: Use NumPy arrays for model fitting and explanation to ensure consistency
-                        model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train.values, y_train)
-                        explainer = shap.TreeExplainer(model)
-                        shap_values = explainer.shap_values(X_test.values)
+# ==================== TAB 3: DRIVER ANALYSIS (Corrected) ====================
+with tabs[2]:
+    st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
+    with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
+        # ... (SME explanation remains unchanged) ...
+        st.markdown("""
+        **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
+        - **Classical: Analysis of Variance (ANOVA)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
+            - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
+        - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
+            - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
+        #### SME Verdict
+        **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
+        """)
+    df_pred = ssm.get_data("predictive_quality_data")
+    if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
+    else:
+        try:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("###### Classical: Average Effect (Box Plot)"); fig_box = px.box(df_pred, x='final_qc_outcome', y='in_process_pressure', title='Pressure by Outcome'); st.plotly_chart(fig_box, use_container_width=True)
+            with col2:
+                st.markdown("###### Modern: Global Explanation (SHAP Summary)")
+                with st.spinner("Calculating SHAP values..."):
+                    features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']; X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
+                    X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+                    
+                    # --- SME FIX STARTS HERE ---
+                    # Fit model on the DataFrame directly. Scikit-learn handles it gracefully.
+                    model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
+                    explainer = shap.TreeExplainer(model)
+                    
+                    # CRITICAL FIX: Calculate SHAP values on the DataFrame (X_test) itself, not its NumPy representation (X_test.values).
+                    # This preserves the index and ensures alignment with the data passed to the plot function.
+                    shap_values = explainer.shap_values(X_test)
+                    # --- SME FIX ENDS HERE ---
 
-                    # Pass the DataFrame to the plot for feature names, but the calculation was done on NumPy arrays
-                    fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
-                st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Local (Single Prediction) Explanation")
-                st.info("Select a specific unit to see why the model made its prediction.")
-                instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
-                st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test.iloc[instance_idx,:], link="logit"))
-            except Exception as e: st.error(f"An error occurred during Driver Analysis: {e}")
+                # Now, the shap_values matrix and the X_test DataFrame are perfectly aligned.
+                fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
+            
+            st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Local (Single Prediction) Explanation")
+            st.info("Select a specific unit to see why the model made its prediction.")
+            instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
+            
+            # For the force plot, we use the same aligned data.
+            st_shap(shap.force_plot(explainer.expected_value[1], shap_values[1][instance_idx,:], X_test.iloc[instance_idx,:], link="logit"))
+        
+        except Exception as e: st.error(f"An error occurred during Driver Analysis: {e}")
 
     # ==================== TAB 4: PROCESS CONTROL ====================
     with tabs[3]:
