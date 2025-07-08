@@ -48,22 +48,43 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Helper Functions ---
+# --- Helper Functions (Final and Most Robust Version) ---
 def st_shap(plot, height: int = None) -> None:
-    """Render SHAP plots in Streamlit with error handling."""
+    """
+    Renders SHAP plots in Streamlit with error handling.
+    This version is robust to Streamlit API changes by controlling height via CSS
+    within the HTML string itself.
+    """
     try:
-        shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
+        # Get the core SHAP plot HTML and the necessary Javascript header.
+        shap_js = shap.getjs()
+        shap_plot_html = plot.html()
+
+        # SME FIX: Instead of passing a `height` argument to a Streamlit function,
+        # we construct a wrapper `div` with an inline style attribute. This is
+        # the standard and most reliable way to control element size in HTML.
         
-        # SME FIX: The `st.components.v1.html` path is deprecated/removed in modern Streamlit.
-        # The correct, modern, and stable API call is `st.html()`.
-        # This makes the application resilient to Streamlit version updates.
-        st.html(shap_html, height=height)
+        # We start with the JS header, which is essential for interactivity.
+        styled_html = f"<head>{shap_js}</head>"
+        
+        # We create a wrapper div and inject the height style directly into it.
+        # Adding `overflow-y: auto` is a best practice to enable scrolling if
+        # the content is taller than the container.
+        styled_html += f'<div style="height: {height}px; overflow-y: auto;">'
+        
+        # The main SHAP plot content goes inside our styled div.
+        styled_html += shap_plot_html
+        
+        # Close the div.
+        styled_html += '</div>'
+
+        # Now, call st.html with our complete, self-contained, and styled HTML string.
+        # This call no longer has any problematic keyword arguments.
+        st.html(styled_html, height=(height + 20) if height else None)
+
     except Exception as e:
-        # The error log will now provide the full traceback for better debugging.
-        logger.error(f"Failed to render SHAP plot via st.html: {e}", exc_info=True)
-        st.error(
-            "Unable to render the interactive SHAP force plot. "
-            "This may be due to a library compatibility issue."
-        )
+        logger.error(f"Failed to render SHAP plot with HTML/CSS wrapper: {e}", exc_info=True)
+        st.error("Unable to render the interactive SHAP force plot.")
 
 def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     """Creates the UI for the ML & Analytics Lab comparative workspace."""
