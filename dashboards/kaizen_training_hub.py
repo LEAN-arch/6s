@@ -22,8 +22,6 @@ import logging
 import pandas as pd
 import streamlit as st
 
-# SME FIX: Import SessionStateManager to resolve the NameError.
-# This class is needed for the type hint in the function signature.
 from six_sigma.data.session_state_manager import SessionStateManager
 
 
@@ -231,19 +229,8 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
 
     try:
         # --- HYBRID DATA LOADING STRATEGY ---
-        # 1. Attempt to load live data from the Session State Manager.
-        kaizen_events = ssm.get_data("kaizen_events")
-        training_materials = ssm.get_data("training_materials")
-
-        # 2. If live data is not found, use the rich, hardcoded fallback content.
-        if not kaizen_events:
-            st.toast("Live Kaizen data not found. Loading showcase examples.", icon="📚")
-            kaizen_events = get_overhauled_kaizen_data()
-        if not training_materials:
-            st.toast("Live training data not found. Loading showcase curriculum.", icon="📚")
-            training_materials = get_overhauled_training_data()
-
-        # 3. Always load the static glossary and bibliography.
+        kaizen_events = ssm.get_data("kaizen_events") or get_overhauled_kaizen_data()
+        training_materials = ssm.get_data("training_materials") or get_overhauled_training_data()
         glossary = get_glossary_content()
         bibliography = get_bibliography_content()
 
@@ -259,67 +246,58 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
         with events_tab:
             st.subheader("A Chronicle of Realized Improvements")
             st.markdown("Each event below is a testament to a team's dedication to making our work better. Review these A3 summaries to understand the 'Why' behind the change and to find inspiration for your own area.")
-            if not kaizen_events:
-                # This check is a safeguard in case the fallback also fails, which is highly unlikely.
-                st.warning("No Kaizen events data is available.")
-            else:
-                df_events = pd.DataFrame(kaizen_events).sort_values(by='date', ascending=False)
-                for _, event in df_events.iterrows():
-                    with st.container(border=True):
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
-                            st.markdown(f"#### {event.get('title', 'N/A')}")
-                            st.caption(f"**A3 ID:** {event.get('id', 'N/A')} | **Site:** {event.get('site', 'N/A')} | **Completion Date:** {event.get('date', 'N/A')}")
-                        with col2:
-                            st.button("View Full A3 Report", key=f"report_{event.get('id', 'default_key')}", type="primary", disabled=True, use_container_width=True, help="Full PDF report not available in this demo.")
-                        
-                        if event.get('problem_background'):
-                            st.markdown("**Problem Background:**")
-                            st.markdown(f"> {event.get('problem_background')}")
-                        
-                        if event.get('analysis_and_countermeasures'):
-                            with st.expander("**View Detailed Analysis & Countermeasures**"):
-                                st.markdown(event.get('analysis_and_countermeasures'))
-                                st.caption("_Detailed schematics, raw data, and financial models are redacted from this view and available in the full A3 report._")
-                        
-                        outcome_key = 'quantified_results' if 'quantified_results' in event else 'outcome'
-                        if event.get(outcome_key):
-                            st.success(f"**Results:** {event.get(outcome_key)}", icon="💡")
+            df_events = pd.DataFrame(kaizen_events).sort_values(by='date', ascending=False)
+            for _, event in df_events.iterrows():
+                with st.container(border=True):
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"#### {event.get('title', 'N/A')}")
+                        st.caption(f"**A3 ID:** {event.get('id', 'N/A')} | **Site:** {event.get('site', 'N/A')} | **Completion Date:** {event.get('date', 'N/A')}")
+                    with col2:
+                        st.button("View Full A3 Report", key=f"report_{event.get('id', 'default_key')}", type="primary", disabled=True, use_container_width=True, help="Full PDF report not available in this demo.")
+                    
+                    if event.get('problem_background'):
+                        st.markdown("**Problem Background:**")
+                        st.markdown(f"> {event.get('problem_background')}")
+                    
+                    if event.get('analysis_and_countermeasures'):
+                        with st.expander("**View Detailed Analysis & Countermeasures**"):
+                            st.markdown(event.get('analysis_and_countermeasures'))
+                            st.caption("_Detailed schematics, raw data, and financial models are redacted from this view and available in the full A3 report._")
+                    
+                    outcome_key = 'quantified_results' if 'quantified_results' in event else 'outcome'
+                    if event.get(outcome_key):
+                        st.success(f"**Results:** {event.get(outcome_key)}", icon="💡")
 
-                        if event.get('key_insight'):
-                            st.info(f"**Key Insight / Lesson Learned:** {event.get('key_insight')}", icon="🔬")
-
-                    st.write("")
+                    if event.get('key_insight'):
+                        st.info(f"**Key Insight / Lesson Learned:** {event.get('key_insight')}", icon="🔬")
+                st.write("")
 
         # ==================== TRAINING LIBRARY ====================
         with training_tab:
             st.subheader("Empowering Excellence Through Education")
             st.markdown("A commitment to quality begins with a commitment to learning. This curated library provides resources to develop skills at every level of the organization, from foundational principles to advanced statistical methods.")
-            if not training_materials:
-                 # Safeguard check.
-                st.warning("No training materials data is available.")
-            else:
-                df_training = pd.DataFrame(training_materials)
-                for _, material in df_training.iterrows():
-                    st.markdown(f"""
-                    <div style="border: 1px solid #c8c8c8; border-left: 6px solid #007bff; border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <div style="display: flex; align-items: flex-start;">
-                            <span style="font-size: 2.5em; margin-right: 25px; margin-top: 5px;">{material.get('icon', '📚')}</span>
-                            <div style="flex-grow: 1;">
-                                <div style="font-weight: bold; font-size: 1.2em; margin-bottom: 5px;">{material.get('title', 'Untitled Module')}</div>
-                                <div style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
-                                    <span><b>Type:</b> {material.get('type', 'N/A')}</span> | <span><b>Est. Duration:</b> {material.get('duration_hr', '?')} hrs</span> | <span><b>Audience:</b> {material.get('target_audience', 'General')}</span>
-                                </div>
-                                <p style="font-size: 1em; color: #333; margin-bottom: 15px;">{material.get('description', '')}</p>
-                                <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9em;">
-                                    <b>Learning Objectives:</b> <ul>{''.join([f"<li>{obj}</li>" for obj in material.get('learning_objectives', [])])}</ul>
-                                    <b>Recommended Reading:</b> <i>{material.get('recommended_reading', 'None')}</i>
-                                </div>
-                                <a href="{material.get('link', '#')}" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 8px 15px; margin-top: 15px; border-radius: 5px; text-decoration: none; font-weight: bold;">Launch Module</a>
+            df_training = pd.DataFrame(training_materials)
+            for _, material in df_training.iterrows():
+                st.markdown(f"""
+                <div style="border: 1px solid #c8c8c8; border-left: 6px solid #007bff; border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: flex-start;">
+                        <span style="font-size: 2.5em; margin-right: 25px; margin-top: 5px;">{material.get('icon', '📚')}</span>
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; font-size: 1.2em; margin-bottom: 5px;">{material.get('title', 'Untitled Module')}</div>
+                            <div style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
+                                <span><b>Type:</b> {material.get('type', 'N/A')}</span> | <span><b>Est. Duration:</b> {material.get('duration_hr', '?')} hrs</span> | <span><b>Audience:</b> {material.get('target_audience', 'General')}</span>
                             </div>
+                            <p style="font-size: 1em; color: #333; margin-bottom: 15px;">{material.get('description', '')}</p>
+                            <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9em;">
+                                <b>Learning Objectives:</b> <ul>{''.join([f"<li>{obj}</li>" for obj in material.get('learning_objectives', [])])}</ul>
+                                <b>Recommended Reading:</b> <i>{material.get('recommended_reading', 'None')}</i>
+                            </div>
+                            <a href="{material.get('link', '#')}" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 8px 15px; margin-top: 15px; border-radius: 5px; text-decoration: none; font-weight: bold;">Launch Module</a>
                         </div>
                     </div>
-                    """, unsafe_allow_html=True)
+                </div>
+                """, unsafe_allow_html=True)
         
         # ==================== GLOSSARY & FORMULAS ====================
         with glossary_tab:
