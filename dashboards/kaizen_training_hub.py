@@ -6,16 +6,14 @@ This module serves as a central repository for documenting continuous improvemen
 It supports the MBB's role in coaching, mentoring, and fostering a culture of
 quality by sharing successes and enabling skill development.
 
-SME Overhaul (Definitive All-Inclusive Edition):
-- This is the complete, unbridged file, merging the original application logic
-  with the massively extended, academic-grade content.
-- It uses a hybrid data strategy: it attempts to load live data from the
-  SessionStateManager, but falls back to rich, hardcoded data if none is found,
-  guaranteeing no "empty state" errors.
-- The UI is adaptive, capable of rendering both simple, original data structures
-  and the enhanced, detailed content without error.
+SME Overhaul (Definitive All-Inclusive & Unabridged Edition):
+- This is the final, complete file, with all data-generating functions fully
+  populated and no content truncated or omitted.
+- It uses a robust hybrid data strategy: it attempts to load live data from the
+  SessionStateManager, but falls back to the complete, hardcoded data if none
+  is found, guaranteeing no "empty state" errors.
 - All content streams—Kaizen Log, Training Library, Glossary with Formulas, and
-  a Foundational Bibliography—are included in their entirety.
+  a Foundational Bibliography—are included and rendered in their entirety.
 """
 
 import logging
@@ -27,13 +25,12 @@ from six_sigma.data.session_state_manager import SessionStateManager
 
 # ==============================================================================
 # --- DEFINITIVE, HARDCODED SHOWCASE CONTENT (FALLBACK DATA) ---
-# This section contains the rich, academic-grade content. It serves as a
-# fallback if the SessionStateManager does not provide live data, making the
-# component self-sufficient and demonstrable.
+# This section contains the rich, academic-grade content in its entirety. It
+# serves as a fallback if the SessionStateManager does not provide live data.
 # ==============================================================================
 
 def get_overhauled_kaizen_data():
-    """Generates an expanded and diverse set of Kaizen event data."""
+    """Generates the full, unabridged set of Kaizen event data."""
     return [
         {
             "id": "KZN-04", "title": "Invoice Processing Lead Time Reduction", "site": "Corporate HQ", "date": "2025-07-20",
@@ -95,7 +92,7 @@ def get_overhauled_kaizen_data():
     ]
 
 def get_overhauled_training_data():
-    """Generates an expanded, comprehensive training library."""
+    """Generates the full, unabridged training library."""
     return [
         {
             "id": "TRN-101",
@@ -163,7 +160,7 @@ def get_overhauled_training_data():
     ]
 
 def get_glossary_content():
-    """Generates a definitive glossary with mathematical formulas."""
+    """Generates the full, unabridged glossary with mathematical formulas."""
     return {
         "Lean Principles": [
             {"term": "Takt Time", "definition": "The rate at which a finished product needs to be completed to meet customer demand. It is the 'heartbeat' of a lean system.", "formula": r"Takt\ Time = \frac{\text{Available Production Time per Day}}{\text{Customer Demand per Day}}"},
@@ -194,7 +191,7 @@ def get_glossary_content():
     }
 
 def get_bibliography_content():
-    """Generates a definitive, curated bibliography."""
+    """Generates the full, unabridged bibliography."""
     return {
         "Lean Thinking & Culture": [
             {"title": "The Machine That Changed the World", "author": "James P. Womack, Daniel T. Jones, Daniel Roos", "summary": "The foundational text that introduced Lean production to the Western world. Essential reading to understand the 'Why' behind the entire Lean movement and its profound impact on manufacturing."},
