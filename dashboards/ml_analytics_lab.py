@@ -47,22 +47,27 @@ from six_sigma.utils.plotting import create_imr_chart
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def st_shap(plot, height: int = None) -> None:
+
+# ---HELPER FNXs
+def st_shap(plot, height: int = 200) -> None:
     """
-    Renders SHAP plots in Streamlit using the most compatible API.
+    Renders SHAP plots in Streamlit using st.iframe for robust height control.
+    This is the most compatible method for environments where st.html() lacks
+    a height argument. A default height is provided for the force plot.
     """
     try:
-        # The combination of shap.getjs() and plot.html() is the standard way.
+        # Standard SHAP HTML generation. This part is correct.
         shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
 
-        # SME FIX: The most reliable and backward-compatible method for rendering
-        # custom HTML with a specified height is st.components.v1.html.
-        # This API is explicitly designed for this use case and has been stable
-        # across many Streamlit versions.
-        st.components.v1.html(shap_html, height=height)
+        # SME's DEFINITIVE SOLUTION: Use st.iframe.
+        # This component is explicitly designed to embed HTML content within a
+        # sandboxed frame of a specific size. It takes the HTML string via the
+        # `srcdoc` argument and controls the container size with the `height`
+        # argument. This is the correct, official way to achieve our goal.
+        st.iframe(srcdoc=shap_html, height=height, scrolling=True)
 
     except Exception as e:
-        logger.error(f"Failed to render SHAP plot via st.components.v1.html: {e}", exc_info=True)
+        logger.error(f"Failed to render SHAP plot via st.iframe: {e}", exc_info=True)
         st.error("Unable to render the interactive SHAP force plot.")
 
 def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
