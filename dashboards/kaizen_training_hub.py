@@ -68,12 +68,7 @@ def get_overhauled_kaizen_data():
             """,
             "quantified_results": "Eliminated 95% of 'searching' time, reducing average assembly time by 15%. Operator-reported ergonomic strain and frustration decreased significantly, confirmed by a post-event survey (results redacted for privacy).",
             "key_insight": "A clean and organized workplace is not about aesthetics; it is a prerequisite for quality and efficiency. When everything has a place, deviations from standard become immediately visible."
-        }
-    ]
-
-def get_overhauled_training_data():
-    """Generates a comprehensive, academic-grade training library."""
-    return [
+        },
         {
             "id": "KZN-04", "title": "Invoice Processing Lead Time Reduction", "site": "Corporate HQ", "date": "2025-07-20",
             "problem_background": "The average lead time from invoice receipt to payment approval is 18 days, causing late payment fees and straining supplier relationships. The goal was to reduce this to <5 days by eliminating non-value-added steps.",
@@ -101,7 +96,12 @@ def get_overhauled_training_data():
             """,
             "quantified_results": "Reduced the specific 'Signal Lost' failure rate from 4% to 0.1% within one week of implementation. Rework costs were reduced by an estimated $250k annually.",
             "key_insight": "Technical problems are often symptoms of process or design flaws. Persistently asking 'Why' moves the team beyond blaming components or people to fixing the underlying system."
-        },
+        }
+    ]
+
+def get_overhauled_training_data():
+    """Generates a comprehensive, academic-grade training library."""
+    return [
         {
             "id": "TRN-101",
             "title": "A3 Thinking: The Art of Problem Solving on a Single Page",
@@ -118,7 +118,8 @@ def get_overhauled_training_data():
                 "Visually communicate root cause analysis and countermeasures."
             ],
             "recommended_reading": "'Managing to Learn' by John Shook"
-        }, {
+        },
+        {
             "id": "TRN-102",
             "title": "Statistical Process Control (SPC) Masterclass",
             "type": "Workshop Slides",
@@ -311,9 +312,6 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                             st.latex(item['formula'])
                         st.write("") # Add a little space
                         
-    except Exception as e:
-        st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
-        logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
     except Exception as e:
         st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
         logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
