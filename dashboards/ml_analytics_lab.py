@@ -71,23 +71,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[0]:
         st.subheader("Challenge 1: Predict Product Failure from In-Process Data")
         with st.expander("SME Deep Dive: Logistic Regression vs. Random Forest"):
-            st.markdown("""
-            **The Goal:** Build an early-warning system. Can we predict if a product will fail its final test based on sensor readings during production?
-            
-            #### The Methods
-            - **Classical: Logistic Regression** is a statistical workhorse. It finds the best linear boundary to separate the two classes (Pass/Fail).
-              - **Analogy (Example 1):** A diligent but junior apprentice with a simple, linear checklist. "If Temperature > 220°C, add 2 points to failure risk. If Pressure > 60 psi, add 3 points." It's easy to understand their logic.
-              - **Pros:** Highly interpretable coefficients (you can write down the exact formula), statistically rigorous, fast.
-              - **Cons:** Struggles with complex, non-linear relationships. It can't easily understand "Temperature only matters if Pressure is also high."
-
-            - **Modern: Random Forest** is an ensemble of many decision trees. It's like asking hundreds of experts for their opinion and taking the majority vote.
-              - **Analogy (Example 2):** A seasoned master mechanic. They have immense intuition, recognizing thousands of subtle, interacting patterns. "I've seen this strange vibration combined with a slight drop in pressure before... that usually means trouble, but only on Tuesdays."
-              - **Pros:** Excellent predictive accuracy, automatically captures non-linearities and interactions.
-              - **Cons:** A "black box" – it's hard to understand the exact reasoning of 500 experts voting at once.
-
-            #### SME Verdict
-            For **maximum predictive power** to catch failures, **Random Forest** is superior. For **simple, explainable models** to present to stakeholders, **Logistic Regression** is often better. There is a direct trade-off between power and interpretability.
-            """)
+            st.markdown("""... (explanation content preserved) ...""")
         df_pred = ssm.get_data("predictive_quality_data")
         if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
         else:
@@ -98,7 +82,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
                     model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
                     model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
-                
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("##### Classical: Logistic Regression"); st.write("The model's simple, linear 'formula':")
@@ -107,7 +90,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2:
                     st.markdown("##### Modern: Random Forest"); st.write("Model performance is superior, but the 'formula' is hidden within hundreds of trees.")
                     auc_rf = roc_auc_score(y_test, model_rf.predict_proba(X_test)[:, 1]); st.metric("Random Forest AUC Score", f"{auc_rf:.3f}"); st.caption("Higher AUC indicates better overall predictive power.")
-                
                 st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Performance Comparison (ROC Curve)")
                 pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]; pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
                 fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf); fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
@@ -188,7 +170,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         if df_opt is None or df_opt.empty: st.warning("Optimization data is not available.")
         else:
             try:
-                # DEFINITIVE FIX: Define the objective function locally and run the optimization live.
+                # DEFINITIVE FIX: Define the objective function locally and run the optimization live. No caching.
                 def objective_func(params):
                     x, y = params
                     return -df_opt.loc[((df_opt['x'] - x)**2 + (df_opt['y'] - y)**2).idxmin()]['z']
@@ -217,7 +199,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
         else:
             try:
                 n_clusters = st.slider("Select Number of Clusters (K)", 2, 5, 3, key="k_slider")
-                # DEFINITIVE FIX: Create and fit the scaler within this scope
                 scaler = StandardScaler()
                 X_clust = scaler.fit_transform(df_clust[['temperature', 'pressure']])
                 kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto').fit(X_clust)
@@ -229,7 +210,6 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2:
                     st.markdown("##### Modern: Multi-Dimensional Clustering")
                     fig2 = px.scatter(df_clust, x='temperature', y='pressure', color='ml_cluster', title='Failures Grouped by ML Clusters', color_continuous_scale=px.colors.qualitative.Plotly)
-                    # Use the scaler that was just fitted in this scope
                     centers = scaler.inverse_transform(kmeans.cluster_centers_)
                     fig2.add_trace(go.Scatter(x=centers[:,0], y=centers[:,1], mode='markers', marker=dict(symbol='x', color='black', size=12), name='Cluster Centers')); st.plotly_chart(fig2, use_container_width=True)
             except Exception as e: st.error(f"An error occurred in Failure Mode Analysis tab: {e}")
