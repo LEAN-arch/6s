@@ -22,16 +22,16 @@ SME Overhaul (Kaizen Leader Edition):
 import logging
 import pandas as pd
 import streamlit as st
-
-# SME FIX: Import SessionStateManager to resolve the NameError.
-# This class is needed for the type hint in the function signature.
+from typing import List, Dict, Any
 from six_sigma.data.session_state_manager import SessionStateManager
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# In a real application, this data would come from the SessionStateManager.
-# For this overhaul, we define it here to showcase the rich, academic-grade content.
-
-def get_overhauled_kaizen_data():
+# --- Data Definitions (Temporary for Demo) ---
+# In a production environment, move these to SessionStateManager or a separate data module
+def get_overhauled_kaizen_data() -> List[Dict[str, Any]]:
     """Generates realistic, detailed Kaizen event data."""
     return [
         {
@@ -71,7 +71,7 @@ def get_overhauled_kaizen_data():
         }
     ]
 
-def get_overhauled_training_data():
+def get_overhauled_training_data() -> List[Dict[str, Any]]:
     """Generates a comprehensive, academic-grade training library."""
     return [
         {
@@ -127,8 +127,7 @@ def get_overhauled_training_data():
         }
     ]
 
-# --- EXTENSION START: NEW FUNCTION FOR GLOSSARY CONTENT ---
-def get_glossary_content():
+def get_glossary_content() -> Dict[str, List[Dict[str, str]]]:
     """Generates the content for the methodologies and terminology glossary."""
     return {
         "Lean Principles": [
@@ -136,7 +135,7 @@ def get_glossary_content():
             {"term": "Gemba (現場)", "definition": "Japanese for 'the real place.' It refers to the location where value is created, such as the factory floor or a service desk."},
             {"term": "Kaizen (改善)", "definition": "A strategy of 'Continuous Improvement' where small, ongoing, positive changes are made to a process. It emphasizes employee involvement and a culture of incremental enhancement."},
             {"term": "Muda (無駄), Mura (斑), Muri (無理)", "definition": "The '3 M's' of waste in the Toyota Production System. **Muda:** Non-value-added waste. **Mura:** Unevenness or irregularity. **Muri:** Overburdening equipment or operators."},  
-            { "term": "Muda (無駄)", "definition": "Japanese for 'waste.' It refers to any activity that consumes resources but creates no value for the customer. The 7 classic wastes are: Transport, Inventory, Motion, Waiting, Overproduction, Over-processing, and Defects (TIMWOOD)."},
+            {"term": "Muda (無駄)", "definition": "Japanese for 'waste.' It refers to any activity that consumes resources but creates no value for the customer. The 7 classic wastes are: Transport, Inventory, Motion, Waiting, Overproduction, Over-processing, and Defects (TIMWOOD)."},
             {"term": "Poka-Yoke (ポカヨケ)", "definition": "A 'mistake-proofing' mechanism. Any technique in a process that helps to avoid errors by preventing, correcting, or drawing attention to them as they occur."},
             {"term": "Jidoka (自働化)", "definition": "Autonomation or 'automation with a human touch.' The principle of designing equipment to stop automatically and signal immediately when a problem occurs, preventing the mass production of defects."},
             {"term": "Heijunka (平準化)", "definition": "Production leveling. The process of smoothing the type and quantity of production over a fixed period. This reduces Mura (unevenness) and minimizes inventory."},
@@ -154,10 +153,10 @@ def get_glossary_content():
             {"term": "p-value", "definition": "The probability of obtaining test results at least as extreme as the results actually observed, assuming the null hypothesis is correct. A small p-value (typically ≤ 0.05) indicates strong evidence against the null hypothesis."},
             {"term": "ANOVA (Analysis of Variance)", "definition": "A statistical test used to determine whether there are any statistically significant differences between the means of two or more independent groups."},
             {"term": "Regression Analysis", "definition": "A set of statistical processes for estimating the relationships between a dependent variable (the 'output' or 'Y') and one or more independent variables (the 'inputs' or 'X's')."},
-            {"term": "Design of Experiments (DOE)", "definition": "A systematic method to determine the relationship between factors affecting a process and the output of that process. Used to find the optimal 'recipe' for a process with minimal experimental runs."}
+            {"term": "Design of Experiments (DOE)", "definition": "A systematic method to determine the relationship between factors affecting a process and the output of that process. Used to find the optimal 'recipe' for a process with minimal experimental runs."},
             {"term": "Confidence Interval", "definition": "A range of values, derived from sample statistics, that is likely to contain the value of an unknown population parameter. A 95% confidence interval means we are 95% confident the true population mean lies within that range."},       
             {"term": "Gage R&R (Repeatability & Reproducibility)", "definition": "A statistical study to evaluate the precision of a measurement system. **Repeatability** is the variation from the same operator using the same tool. **Reproducibility** is the variation between different operators using the same tool."},
-            {"term": "Control Chart (Shewhart Chart)", "definition": "A graph used to study how a process changes over time. It shows a center line for the average, an upper line for the upper control limit, and a lower line for the lower control limit.", "formula": r"UCL/LCL = \bar{\bar{x}} \pm 3 \frac{\bar{R}}{d_2} \quad \text{(for Xbar-R charts)}"},
+            {"term": "Control Chart (Shewhart Chart)", "definition": "A graph used to study how a process changes over time. It shows a center line for the average, an upper line for the upper control limit, and a lower line for the lower control limit.", "formula": r"UCL = \bar{x} + 3 \frac{\bar{R}}{d_2}, \quad LCL = \bar{x} - 3 \frac{\bar{R}}{d_2} \quad \text{(for Xbar-R charts)}"},
         ],
         "AI/ML for Operations": [
             {"term": "Supervised Learning", "definition": "A type of machine learning where the model learns from data that has been manually labeled with the correct outcomes. Analogy: Learning with an 'answer key.' (e.g., training a model on historical data of 'Pass' vs. 'Fail' parts)."},
@@ -167,31 +166,108 @@ def get_glossary_content():
             {"term": "SHAP (SHapley Additive exPlanations)", "definition": "A game-theoretic approach used to explain the output of any machine learning model. It connects optimal credit allocation with local explanations to understand *why* a model made a specific prediction for a single instance."}
         ]
     }
-# --- EXTENSION END ---
 
+# --- Helper Functions ---
+@st.cache_data(show_spinner=False)
+def load_data(ssm: SessionStateManager, key: str) -> Any:
+    """Load data from SessionStateManager with caching and error handling."""
+    try:
+        logger.info(f"Loading data for key: {key}")
+        data = ssm.get_data(key)
+        if data is None:
+            logger.warning(f"No data found for key: {key}")
+            return []
+        return data
+    except Exception as e:
+        logger.error(f"Failed to load data for key {key}: {e}", exc_info=True)
+        return []
 
-logger = logging.getLogger(__name__)
+def validate_kaizen_event(event: Dict[str, Any]) -> bool:
+    """Validate the structure of a Kaizen event."""
+    required_keys = ["id", "title", "site", "date", "problem_background", "analysis_and_countermeasures", "quantified_results", "key_insight"]
+    return all(key in event for key in required_keys) and all(isinstance(event[key], str) for key in required_keys)
+
+def validate_training_material(material: Dict[str, Any]) -> bool:
+    """Validate the structure of a training material."""
+    required_keys = ["id", "title", "type", "duration_hr", "target_audience", "link", "icon", "description", "learning_objectives", "recommended_reading"]
+    return (
+        all(key in material for key in required_keys) and
+        isinstance(material["id"], str) and
+        isinstance(material["title"], str) and
+        isinstance(material["type"], str) and
+        isinstance(material["duration_hr"], (int, float)) and
+        isinstance(material["target_audience"], str) and
+        isinstance(material["link"], str) and
+        isinstance(material["icon"], str) and
+        isinstance(material["description"], str) and
+        isinstance(material["learning_objectives"], list) and
+        all(isinstance(obj, str) for obj in material["learning_objectives"]) and
+        isinstance(material["recommended_reading"], str)
+    )
+
+def validate_glossary(glossary: Dict[str, List[Dict[str, str]]]) -> bool:
+    """Validate the structure of the glossary."""
+    required_term_keys = ["term", "definition"]
+    for category, terms in glossary.items():
+        if not isinstance(terms, list):
+            return False
+        for term in terms:
+            if not all(key in term for key in required_term_keys) or not all(isinstance(term[key], str) for key in required_term_keys):
+                return False
+            if "formula" in term and not isinstance(term["formula"], str):
+                return False
+    return True
+
+def render_glossary(glossary: Dict[str, List[Dict[str, str]]]) -> None:
+    """Render the glossary tab with consistent styling."""
+    try:
+        if not validate_glossary(glossary):
+            st.error("Invalid glossary data structure.")
+            logger.error("Glossary data validation failed")
+            return
+
+        st.subheader("The Common Language of Continuous Improvement")
+        st.markdown("Use this dictionary to understand the key terms, concepts, and methodologies that form the foundation of our operational excellence program. A shared vocabulary is essential for effective collaboration and problem-solving.")
+
+        for category, terms in glossary.items():
+            with st.expander(f"**{category}**", expanded=(category == "Lean Principles")):
+                for item in terms:
+                    with st.container(border=True):
+                        col1, col2 = st.columns([1, 8])
+                        with col1:
+                            st.markdown(f"**{item['term']}**")
+                        with col2:
+                            st.markdown(item["definition"])
+                            if "formula" in item:
+                                try:
+                                    st.latex(item["formula"])
+                                except Exception as e:
+                                    st.warning(f"Failed to render formula for {item['term']}: {e}")
+                                    logger.error(f"LaTeX rendering failed for {item['term']}: {e}", exc_info=True)
+                        st.divider()
+    except Exception as e:
+        st.error(f"Failed to render glossary: {e}")
+        logger.error(f"Glossary rendering failed: {e}", exc_info=True)
 
 def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
     """Creates the UI for the Continuous Improvement & Knowledge Hub."""
-    st.header("🎓 Continuous Improvement & Knowledge Hub")
-    st.markdown("""
-    Welcome to the central nervous system of our learning organization. This hub is the catalyst for our Continuous Improvement (CI) culture.
-    Here, we **celebrate our successes**, **share our wisdom**, and **empower our teams** with the knowledge to drive process excellence.
-    """)
-
     try:
-        # --- 1. Load Data ---
-        # NOTE: For a fully integrated system, this data should be moved into
-        # the SessionStateManager and accessed via ssm.get_data(). For this
-        # showcase, we use local functions to provide rich content.
-        kaizen_events = get_overhauled_kaizen_data()
-        training_materials = get_overhauled_training_data()
-        # --- EXTENSION: LOAD GLOSSARY DATA ---
-        glossary = get_glossary_content()
+        st.header("🎓 Continuous Improvement & Knowledge Hub")
+        st.markdown("""
+        Welcome to the central nervous system of our learning organization. This hub is the catalyst for our Continuous Improvement (CI) culture.
+        Here, we **celebrate our successes**, **share our wisdom**, and **empower our teams** with the knowledge to drive process excellence.
+        """)
+
+        # --- Load Data ---
+        kaizen_events = load_data(ssm, "kaizen_events") or get_overhauled_kaizen_data()
+        training_materials = load_data(ssm, "training_materials") or get_overhauled_training_data()
+        glossary = load_data(ssm, "glossary") or get_glossary_content()
+
+        # --- Validate Data ---
+        kaizen_events = [event for event in kaizen_events if validate_kaizen_event(event)]
+        training_materials = [material for material in training_materials if validate_training_material(material)]
 
         st.info("Select a tab to review A3 reports, access training, or consult the glossary.", icon="🧠")
-        # --- EXTENSION: ADD GLOSSARY TAB ---
         events_tab, training_tab, glossary_tab = st.tabs([
             "🏆 **Kaizen Event A3 Log**",
             "📚 **Training & Development Library**",
@@ -200,85 +276,100 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
 
         # ==================== KAIZEN EVENT LOG ====================
         with events_tab:
-            st.subheader("A Chronicle of Realized Improvements")
-            st.markdown("Each event below is a testament to a team's dedication to making our work better. Review these A3 summaries to understand the 'Why' behind the change and to find inspiration for your own area.")
+            try:
+                st.subheader("A Chronicle of Realized Improvements")
+                st.markdown("Each event below is a testament to a team's dedication to making our work better. Review these A3 summaries to understand the 'Why' behind the change and to find inspiration for your own area.")
 
-            if not kaizen_events:
-                st.warning("No Kaizen events have been logged in the data model.")
-            else:
-                df_events = pd.DataFrame(kaizen_events).sort_values(by='date', ascending=False)
-                for _, event in df_events.iterrows():
-                    with st.container(border=True):
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
-                            st.markdown(f"#### {event['title']}")
-                            st.caption(f"**A3 ID:** {event['id']} | **Site:** {event['site']} | **Completion Date:** {event['date']}")
-                        with col2:
-                            st.button("View Full A3 Report", key=f"report_{event['id']}", type="primary", disabled=True, use_container_width=True, help="Full PDF report not available in this demo.")
+                if not kaizen_events:
+                    st.warning("No Kaizen events have been logged in the data model.")
+                    logger.warning("No valid Kaizen events found")
+                else:
+                    df_events = pd.DataFrame(kaizen_events).sort_values(by='date', ascending=False)
+                    for _, event in df_events.iterrows():
+                        with st.container(border=True):
+                            col1, col2 = st.columns([3, 1])
+                            with col1:
+                                st.markdown(f"#### {event['title']}")
+                                st.caption(f"**A3 ID:** {event['id']} | **Site:** {event['site']} | **Completion Date:** {event['date']}")
+                            with col2:
+                                st.button(
+                                    "View Full A3 Report",
+                                    key=f"report_{event['id']}",
+                                    type="primary",
+                                    disabled=True,
+                                    use_container_width=True,
+                                    help="Full PDF report not available in this demo. Contact your MBB for access."
+                                )
 
-                        st.markdown("**Problem Background:**")
-                        st.markdown(f"> {event['problem_background']}")
+                            st.markdown("**Problem Background:**")
+                            st.markdown(f"> {event['problem_background']}")
 
-                        with st.expander("**View Detailed Analysis & Countermeasures**"):
-                            st.markdown(event['analysis_and_countermeasures'])
-                            st.caption("_Detailed schematics, raw data, and financial models are redacted from this view and available in the full A3 report._")
-                        
-                        st.markdown("**Quantified Results:**")
-                        st.success(f"{event['quantified_results']}", icon="💡")
+                            with st.expander("**View Detailed Analysis & Countermeasures**"):
+                                st.markdown(event['analysis_and_countermeasures'])
+                                st.caption("_Detailed schematics, raw data, and financial models are redacted from this view and available in the full A3 report._")
+                            
+                            st.markdown("**Quantified Results:**")
+                            st.success(f"{event['quantified_results']}", icon="💡")
 
-                        st.markdown("**Key Insight / Lesson Learned:**")
-                        st.info(f"{event['key_insight']}", icon="🔬")
+                            st.markdown("**Key Insight / Lesson Learned:**")
+                            st.info(f"{event['key_insight']}", icon="🔬")
 
-                    st.write("") # Adds vertical space
+                        st.write("")  # Adds vertical space
+            except Exception as e:
+                st.error(f"Failed to render Kaizen Event Log: {e}")
+                logger.error(f"Kaizen Event Log rendering failed: {e}", exc_info=True)
 
         # ==================== TRAINING LIBRARY ====================
         with training_tab:
-            st.subheader("Empowering Excellence Through Education")
-            st.markdown("A commitment to quality begins with a commitment to learning. This curated library provides resources to develop skills at every level of the organization, from foundational principles to advanced statistical methods.")
+            try:
+                st.subheader("Empowering Excellence Through Education")
+                st.markdown("A commitment to quality begins with a commitment to learning. This curated library provides resources to develop skills at every level of the organization, from foundational principles to advanced statistical methods.")
 
-            if not training_materials:
-                st.warning("No training materials are available in the data model.")
-            else:
-                df_training = pd.DataFrame(training_materials)
-                for _, material in df_training.iterrows():
-                    st.markdown(f"""
-                    <div style="border: 1px solid #c8c8c8; border-left: 6px solid #007bff; border-radius: 8px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <div style="display: flex; align-items: flex-start;">
-                            <span style="font-size: 2.5em; margin-right: 25px; margin-top: 5px;">{material['icon']}</span>
-                            <div style="flex-grow: 1;">
-                                <div style="font-weight: bold; font-size: 1.2em; margin-bottom: 5px;">{material['title']}</div>
-                                <div style="font-size: 0.9em; color: #555; margin-bottom: 15px;">
-                                    <span><b>Type:</b> {material['type']}</span> |
-                                    <span><b>Est. Duration:</b> {material['duration_hr']} hrs</span> |
-                                    <span><b>Primary Audience:</b> {material['target_audience']}</span>
-                                </div>
-                                <p style="font-size: 1em; color: #333; margin-bottom: 15px;">{material['description']}</p>
-                                <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 0.9em;">
-                                    <b>Learning Objectives:</b>
-                                    <ul>{''.join([f"<li>{obj}</li>" for obj in material['learning_objectives']])}</ul>
-                                    <b>Recommended Reading:</b> <i>{material['recommended_reading']}</i>
-                                </div>
-                                <a href="{material['link']}" target="_blank" style="display: inline-block; background-color: #007bff; color: white; padding: 8px 15px; margin-top: 15px; border-radius: 5px; text-decoration: none; font-weight: bold;">Launch Module</a>
-                            </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        # --- EXTENSION START: RENDER THE GLOSSARY TAB ---
+                if not training_materials:
+                    st.warning("No training materials are available in the data model.")
+                    logger.warning("No valid training materials found")
+                else:
+                    for material in training_materials:
+                        with st.container(border=True):
+                            col1, col2 = st.columns([1, 8])
+                            with col1:
+                                st.markdown(f"### {material['icon']}")
+                            with col2:
+                                st.markdown(f"#### {material['title']}")
+                                st.caption(
+                                    f"**Type:** {material['type']} | **Est. Duration:** {material['duration_hr']} hrs | "
+                                    f"**Primary Audience:** {material['target_audience']}"
+                                )
+                                st.markdown(material['description'])
+                                with st.expander("Learning Objectives & Recommended Reading"):
+                                    st.markdown("**Learning Objectives:**")
+                                    for obj in material['learning_objectives']:
+                                        st.markdown(f"- {obj}")
+                                    st.markdown(f"**Recommended Reading:** *{material['recommended_reading']}*")
+                                st.button(
+                                    "Launch Module",
+                                    key=f"launch_{material['id']}",
+                                    type="secondary",
+                                    disabled=(material['link'] == "#"),
+                                    use_container_width=True,
+                                    help="Module not available in this demo." if material['link'] == "#" else "Launch the training module."
+                                )
+            except Exception as e:
+                st.error(f"Failed to render Training Library: {e}")
+                logger.error(f"Training Library rendering failed: {e}", exc_info=True)
+
+        # ==================== GLOSSARY ====================
         with glossary_tab:
-            st.subheader("The Common Language of Continuous Improvement")
-            st.markdown("Use this dictionary to understand the key terms, concepts, and methodologies that form the foundation of our operational excellence program. A shared vocabulary is essential for effective collaboration and problem-solving.")
-
-            for category, terms in glossary.items():
-                with st.expander(f"**{category}**", expanded=(category == "Lean Principles")):
-                    for item in terms:
-                        st.markdown(f"**{item['term']}**")
-                        st.markdown(f"> {item['definition']}")
-                        if "formula" in item:
-                            st.latex(item["formula"])
-                        st.divider()
-        # --- EXTENSION END ---
+            render_glossary(glossary)
 
     except Exception as e:
         st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
         logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
+
+if __name__ == "__main__":
+    try:
+        ssm = SessionStateManager()
+        render_kaizen_training_hub(ssm)
+    except Exception as e:
+        st.error("Failed to initialize SessionStateManager.")
+        logger.error(f"SessionStateManager initialization failed: {e}", exc_info=True)
