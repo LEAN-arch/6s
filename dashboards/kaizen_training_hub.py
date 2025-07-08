@@ -127,6 +127,39 @@ def get_overhauled_training_data():
         }
     ]
 
+def get_glossary_content():
+    """Generates the content for the methodologies and terminology glossary."""
+    return {
+        "Lean Principles": [
+            {"term": "Gemba (現場)", "definition": "Japanese for 'the real place.' It refers to the location where value is created, such as the factory floor or a service desk."},
+            {"term": "Kaizen (改善)", "definition": "A strategy of 'Continuous Improvement' where small, ongoing, positive changes are made to a process. It emphasizes employee involvement and a culture of incremental enhancement."},
+            {"term": "Muda (無駄)", "definition": "Japanese for 'waste.' It refers to any activity that consumes resources but creates no value for the customer. The 7 classic wastes are: Transport, Inventory, Motion, Waiting, Overproduction, Over-processing, and Defects (TIMWOOD)."},
+            {"term": "Poka-Yoke (ポカヨケ)", "definition": "A 'mistake-proofing' mechanism. Any technique in a process that helps to avoid errors by preventing, correcting, or drawing attention to them as they occur."},
+            {"term": "Value Stream Mapping (VSM)", "definition": "A flowchart method used to visualize, analyze, and improve all the steps in a product delivery process, from raw materials to the customer. It helps identify and eliminate waste (Muda)."},
+            {"term": "5S", "definition": "A workplace organization method based on five Japanese words: Seiri (Sort), Seiton (Set in Order), Seisō (Shine), Seiketsu (Standardize), and Shitsuke (Sustain)."}
+        ],
+        "Six Sigma Concepts": [
+            {"term": "DMAIC", "definition": "The core data-driven improvement cycle: **D**efine the problem, **M**easure key aspects of the current process, **A**nalyze the data to investigate root causes, **I**mprove the process, and **C**ontrol the future state."},
+            {"term": "DPMO (Defects Per Million Opportunities)", "definition": "A key metric for process performance. It represents the number of defects in a process per one million opportunities. A Six Sigma process aims for 3.4 DPMO."},
+            {"term": "Process Capability (Cp & Cpk)", "definition": "A measure of how well a process is able to produce output that meets customer specifications. **Cp** measures the potential capability, assuming the process is perfectly centered. **Cpk** measures the actual capability, accounting for any off-center performance."},
+            {"term": "COPQ (Cost of Poor Quality)", "definition": "The total financial loss incurred from producing defective products or services. Includes internal failure costs (scrap, rework) and external failure costs (warranty claims, returns)."},
+            {"term": "Voice of the Customer (VOC)", "definition": "The process of capturing customer expectations, preferences, and aversions. The VOC is translated into Critical-to-Quality (CTQ) requirements for the process."}
+        ],
+        "Statistical & Analytical Methods": [
+            {"term": "Hypothesis Testing", "definition": "A formal statistical procedure used to accept or reject a claim about a process or population based on sample data. It involves a Null Hypothesis (H₀, the status quo) and an Alternative Hypothesis (Hₐ)."},
+            {"term": "p-value", "definition": "The probability of obtaining test results at least as extreme as the results actually observed, assuming the null hypothesis is correct. A small p-value (typically ≤ 0.05) indicates strong evidence against the null hypothesis."},
+            {"term": "ANOVA (Analysis of Variance)", "definition": "A statistical test used to determine whether there are any statistically significant differences between the means of two or more independent groups."},
+            {"term": "Regression Analysis", "definition": "A set of statistical processes for estimating the relationships between a dependent variable (the 'output' or 'Y') and one or more independent variables (the 'inputs' or 'X's')."},
+            {"term": "Design of Experiments (DOE)", "definition": "A systematic method to determine the relationship between factors affecting a process and the output of that process. Used to find the optimal 'recipe' for a process with minimal experimental runs."}
+        ],
+        "AI/ML for Operations": [
+            {"term": "Supervised Learning", "definition": "A type of machine learning where the model learns from data that has been manually labeled with the correct outcomes. Analogy: Learning with an 'answer key.' (e.g., training a model on historical data of 'Pass' vs. 'Fail' parts)."},
+            {"term": "Unsupervised Learning", "definition": "A type of machine learning where the model works on its own to discover patterns and information in unlabeled data. Analogy: Finding hidden groups without an answer key. (e.g., K-Means clustering to find different failure modes)."},
+            {"term": "Random Forest", "definition": "A powerful supervised learning algorithm that is an 'ensemble' of many individual decision trees. It averages their predictions to produce a more accurate and stable result. Excellent for predictive quality tasks."},
+            {"term": "SHAP (SHapley Additive exPlanations)", "definition": "A game-theoretic approach used to explain the output of any machine learning model. It connects optimal credit allocation with local explanations to understand *why* a model made a specific prediction for a single instance."}
+        ]
+    }
+
 logger = logging.getLogger(__name__)
 
 def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
@@ -144,13 +177,14 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
         # showcase, we use local functions to provide rich content.
         kaizen_events = get_overhauled_kaizen_data()
         training_materials = get_overhauled_training_data()
+        glossary = get_glossary_content()
 
         st.info("Select a tab to review the A3 reports from past Kaizen events or to access our curated library of quality and CI training.", icon="🧠")
-        events_tab, training_tab = st.tabs(["🏆 **Kaizen Event A3 Log**", "📚 **Training & Development Library**"])
+        events_tab, training_tab = st.tabs(["🏆 **Kaizen Event A3 Log**", "📚 **Training & Development Library**", "📖 **Methodologies & Terminology Glossary**"])
 
         # ==================== KAIZEN EVENT LOG ====================
         with events_tab:
-            st.subheader("A Chronicle of Realized Improvements")
+            st.subheader("Implementing Kaizen: A Chronicle of Realized Improvements")
             st.markdown("Each event below is a testament to a team's dedication to making our work better. Review these A3 summaries to understand the 'Why' behind the change and to find inspiration for your own area.")
 
             if not kaizen_events:
@@ -213,7 +247,18 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+       
+        with glossary_tab:
+            st.subheader("The Common Language of Continuous Improvement")
+            st.markdown("Use this dictionary to understand the key terms, concepts, and methodologies that form the foundation of our operational excellence program. A shared vocabulary is essential for effective collaboration and problem-solving.")
 
+            for category, terms in glossary.items():
+                with st.expander(f"**{category}**", expanded=(category == "Lean Principles")):
+                    for item in terms:
+                        st.markdown(f"**{item['term']}**")
+                        st.markdown(f"> {item['definition']}")
+                        st.write("") # Add a little space
+                        
     except Exception as e:
         st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
         logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
