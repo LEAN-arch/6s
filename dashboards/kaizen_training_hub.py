@@ -23,6 +23,11 @@ import logging
 import pandas as pd
 import streamlit as st
 
+# SME FIX: Import SessionStateManager to resolve the NameError.
+# This class is needed for the type hint in the function signature.
+from six_sigma.data.session_state_manager import SessionStateManager
+
+
 # In a real application, this data would come from the SessionStateManager.
 # For this overhaul, we define it here to showcase the rich, academic-grade content.
 
@@ -134,8 +139,9 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
 
     try:
         # --- 1. Load Data ---
-        # In a real app, this would use ssm.get_data("kaizen_events"), etc.
-        # We use our rich, local functions for this showcase.
+        # NOTE: For a fully integrated system, this data should be moved into
+        # the SessionStateManager and accessed via ssm.get_data(). For this
+        # showcase, we use local functions to provide rich content.
         kaizen_events = get_overhauled_kaizen_data()
         training_materials = get_overhauled_training_data()
 
@@ -207,10 +213,6 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
-        logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
 
     except Exception as e:
         st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
