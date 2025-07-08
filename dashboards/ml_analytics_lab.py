@@ -11,7 +11,7 @@ intended to build intuition about when to use each type of tool.
 SME Definitive Overhaul:
 - The file has been completely re-architected for unparalleled robustness,
   permanently fixing all previously identified bugs (AssertionError,
-  PicklingError, NotFittedError, ImportError).
+  PicklingError, NotFittedError).
 - **Graceful Degradation:** Every single plot, chart, and metric is now
   encapsulated in its own `try...except` block. A failure in one component
   will display a localized error and **will not crash the application**.
@@ -71,7 +71,23 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[0]:
         st.subheader("Challenge 1: Predict Product Failure from In-Process Data")
         with st.expander("SME Deep Dive: Logistic Regression vs. Random Forest"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            **The Goal:** Build an early-warning system. Can we predict if a product will fail its final test based on sensor readings during production?
+            
+            #### The Methods
+            - **Classical: Logistic Regression** is a statistical workhorse. It finds the best linear boundary to separate the two classes (Pass/Fail).
+              - **Analogy (Example 1):** A diligent but junior apprentice with a simple, linear checklist. "If Temperature > 220°C, add 2 points to failure risk. If Pressure > 60 psi, add 3 points." It's easy to understand their logic.
+              - **Pros:** Highly interpretable coefficients (you can write down the exact formula), statistically rigorous, fast.
+              - **Cons:** Struggles with complex, non-linear relationships. It can't easily understand "Temperature only matters if Pressure is also high."
+
+            - **Modern: Random Forest** is an ensemble of many decision trees. It's like asking hundreds of experts for their opinion and taking the majority vote.
+              - **Analogy (Example 2):** A seasoned master mechanic. They have immense intuition, recognizing thousands of subtle, interacting patterns. "I've seen this strange vibration combined with a slight drop in pressure before... that usually means trouble, but only on Tuesdays."
+              - **Pros:** Excellent predictive accuracy, automatically captures non-linearities and interactions.
+              - **Cons:** A "black box" – it's hard to understand the exact reasoning of 500 experts voting at once.
+
+            #### SME Verdict
+            For **maximum predictive power** to catch failures, **Random Forest** is superior. For **simple, explainable models** to present to stakeholders, **Logistic Regression** is often better. There is a direct trade-off between power and interpretability.
+            """)
         df_pred = ssm.get_data("predictive_quality_data")
         if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
         else:
@@ -82,6 +98,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
                     model_rf = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
                     model_lr = LogisticRegression(random_state=42).fit(X_train, y_train)
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("##### Classical: Logistic Regression"); st.write("The model's simple, linear 'formula':")
@@ -90,6 +107,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2:
                     st.markdown("##### Modern: Random Forest"); st.write("Model performance is superior, but the 'formula' is hidden within hundreds of trees.")
                     auc_rf = roc_auc_score(y_test, model_rf.predict_proba(X_test)[:, 1]); st.metric("Random Forest AUC Score", f"{auc_rf:.3f}"); st.caption("Higher AUC indicates better overall predictive power.")
+                
                 st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Performance Comparison (ROC Curve)")
                 pred_proba_rf = model_rf.predict_proba(X_test)[:, 1]; pred_proba_lr = model_lr.predict_proba(X_test)[:, 1]
                 fpr_rf, tpr_rf, _ = roc_curve(y_test, pred_proba_rf); fpr_lr, tpr_lr, _ = roc_curve(y_test, pred_proba_lr)
@@ -100,7 +118,16 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[1]:
         st.subheader("Challenge 2: Evaluate the Power of a Go/No-Go Release Test")
         with st.expander("SME Deep Dive: The ROC Curve"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+             **The Goal:** Quantify how good our final product test is. Does a high measurement value truly indicate a bad batch? This applies to any binary classification test, from a simple rule to a complex ML model.
+             
+             - **Analogy 1 (Example 3): Medical Test.** An ROC curve helps understand the fundamental trade-off: If a doctor makes a test *very sensitive* (catching every sick person), they will inevitably get more *false positives* (telling healthy people they are sick).
+             - **Analogy 2 (Example 4): Spam Filter.** If a spam filter is *too aggressive*, it catches all spam but also puts important emails in the junk folder (false positives). If it's *too lenient*, it lets some spam through (false negatives).
+             - **The AUC (Area Under the Curve)** metric summarizes this entire trade-off into one number. An AUC of 1.0 is a perfect test. An AUC of 0.5 is a useless test (a coin flip).
+             
+             #### Interactive Exploration (Example 5)
+             Use the slider below to pick a "cut-off" value on the test measurement. The plot will show where this point lies on the ROC curve, and the table will show the resulting confusion matrix. This lets you find a practical "sweet spot" that balances catching bad lots with not failing too many good ones.
+             """)
         df_release = ssm.get_data("release_data")
         if df_release is None or df_release.empty: st.warning("Release test data not available.")
         else:
@@ -121,7 +148,15 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[2]:
         st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
         with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            **The Goal:** Move beyond *what* happened to *why* it happened. Which process variables are the most influential drivers of failure?
+            - **Classical: Analysis of Variance (ANOVA)** tests if the average value of an input is significantly different for "Pass" vs. "Fail" groups.
+                - **Analogy (Example 6): A Pollster.** They report "Voters earning over $100k, on average, preferred Candidate A." It's a powerful but high-level insight about a group.
+            - **Modern: SHAP (SHapley Additive exPlanations)** explains individual predictions from an ML model.
+                - **Analogy (Example 7): An Exit Poll Interview.** "Why did you vote for Candidate A?" "Well, their tax policy was a big factor (+10 points), but their stance on trade was a negative (-3 points). Overall, I leaned positive." SHAP does this for every feature and every single prediction.
+            #### SME Verdict
+            **ANOVA** is for confirming a factor's **global significance** (Does temperature matter in general?). **SHAP** is for understanding **local influence** (Why did *this specific unit* fail?). The SHAP Force Plot below is the ultimate demonstration of this, showing the specific forces pushing a single prediction one way or the other.
+            """)
         df_pred = ssm.get_data("predictive_quality_data")
         if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
         else:
@@ -134,7 +169,13 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                     with st.spinner("Calculating SHAP values..."):
                         features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']; X = df_pred[features]; y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
                         X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-                        model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train); explainer = shap.TreeExplainer(model); shap_values = explainer.shap_values(X_test)
+                        
+                        # Definitive Fix: Use NumPy arrays for model fitting and explanation to ensure consistency
+                        model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train.values, y_train)
+                        explainer = shap.TreeExplainer(model)
+                        shap_values = explainer.shap_values(X_test.values)
+
+                    # Pass the DataFrame to the plot for feature names, but the calculation was done on NumPy arrays
                     fig, ax = plt.subplots(); shap.summary_plot(shap_values[1], X_test, plot_type="dot", show=False); st.pyplot(fig, bbox_inches='tight'); plt.clf()
                 st.markdown("<hr>", unsafe_allow_html=True); st.markdown("##### Local (Single Prediction) Explanation")
                 st.info("Select a specific unit to see why the model made its prediction.")
@@ -146,7 +187,14 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[3]:
         st.subheader("Challenge 4: Detect Unusual Behavior in a Live Process")
         with st.expander("SME Deep Dive: SPC vs. Isolation Forest"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            - **Classical: SPC Chart** uses historical, stable variation to set +/- 3 sigma control limits.
+                - **Analogy (Example 8): A Security Guard with a Checklist.** "Is anyone running? No. Is anyone shouting? No. Is anyone outside the velvet rope? Yes! Alert!" It's great at catching known rule violations based on its pre-defined Nelson Rules.
+            - **Modern: Isolation Forest** is an unsupervised ML algorithm that learns the "shape" of normal data and flags points that don't conform.
+                - **Analogy (Example 9): A Seasoned Detective.** They have a "feel" for the room. They might notice someone standing too still, or whispering in a corner. They spot things that aren't against the "rules" but are just... weird.
+            #### SME Verdict
+            **SPC** is the non-negotiable standard for **Sustaining Control**. **Isolation Forest** is a powerful **Investigative Tool** to find "unknown unknowns" or monitor complex, multi-variate systems where simple rules don't apply.
+            """)
         df_process = ssm.get_data("process_data")
         if df_process is None or df_process.empty: st.warning("Process data is not available.")
         else:
@@ -165,7 +213,14 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[4]:
         st.subheader("Challenge 5: Efficiently Find the Best Process 'Recipe'")
         with st.expander("SME Deep Dive: DOE/RSM vs. Bayesian Optimization"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            - **Classical: DOE/RSM** involves pre-planning a grid of experiments. You run all experiments, then fit a model to find the optimum.
+                - **Analogy (Example 10): A Systematic Baker.** They meticulously plan to bake cakes at all combinations of (low/high temp, low/high time). They bake all cakes, taste them, then model the results to declare the best recipe. It's robust, but front-loaded with work.
+            - **Modern: Bayesian Optimization** is a sequential, "smart search" strategy. It uses an ML model to intelligently decide the *single most informative experiment to run next*, balancing exploring uncertain areas with exploiting known good ones.
+                - **Analogy (Example 11): A Master Chef.** They make one batch of sauce, taste it, and think, "Hmm, promising." Based on that, they intelligently decide the next best guess. They learn and adapt after every single experiment, saving time and ingredients.
+            #### SME Verdict
+            **DOE/RSM** is the gold standard for formal, rigorous experimentation. **Bayesian Optimization** is incredibly powerful when experiments are very expensive or time-consuming, as it often finds a near-optimal solution with far fewer experimental runs.
+            """)
         df_opt = ssm.get_data("optimization_data")
         if df_opt is None or df_opt.empty: st.warning("Optimization data is not available.")
         else:
@@ -192,7 +247,14 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
     with tabs[5]:
         st.subheader("Challenge 6: Discover Hidden Groups or 'Types' of Failures")
         with st.expander("SME Deep Dive: Manual Binning vs. K-Means Clustering"):
-            st.markdown("""... (explanation content preserved) ...""")
+            st.markdown("""
+            - **Classical: Manual Binning / Histograms.** We look at one variable at a time and draw lines based on our expert knowledge. "Failures above 240°C we'll call 'overheating'."
+                - **Analogy (Example 12): Sorting Laundry by Color.** We decide on the categories beforehand: whites, darks, colors. It's simple and based on one dimension.
+            - **Modern: K-Means Clustering.** An unsupervised ML algorithm that looks at all variables simultaneously and mathematically finds the best "centers" (centroids) to partition the data.
+                - **Analogy (Example 13): A Smart Sorting Machine.** It looks at color, fabric type, and item size all at once. It might discover groups you never thought of: "delicate whites," "heavy-duty darks," and "colorful cottons." It finds the natural, multi-dimensional groupings in the data.
+            #### SME Verdict
+            **Manual Binning** is useful for simple, one-dimensional problems. **K-Means Clustering** is exceptionally powerful for uncovering hidden, multi-dimensional patterns in failure data, potentially revealing distinct root causes (e.g., "Failure Mode A" is high-temp/low-pressure, while "Failure Mode B" is low-temp/high-pressure) that are impossible to see one variable at a time.
+            """)
         df_clust = ssm.get_data("failure_clustering_data")
         if df_clust is None or df_clust.empty: st.warning("Clustering data is not available.")
         else:
