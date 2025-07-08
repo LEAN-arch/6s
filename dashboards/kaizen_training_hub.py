@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 import streamlit as st
 
-# NOTE: In a real application, this data would come from the SessionStateManager.
+# In a real application, this data would come from the SessionStateManager.
 # For this overhaul, we define it here to showcase the rich, academic-grade content.
 
 def get_overhauled_kaizen_data():
@@ -133,7 +133,9 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
     """)
 
     try:
-        # --- 1. Load Data (Using the new, rich content) ---
+        # --- 1. Load Data ---
+        # In a real app, this would use ssm.get_data("kaizen_events"), etc.
+        # We use our rich, local functions for this showcase.
         kaizen_events = get_overhauled_kaizen_data()
         training_materials = get_overhauled_training_data()
 
@@ -156,7 +158,7 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                             st.markdown(f"#### {event['title']}")
                             st.caption(f"**A3 ID:** {event['id']} | **Site:** {event['site']} | **Completion Date:** {event['date']}")
                         with col2:
-                            st.button("View Full A3 Report", key=f"report_{event['id']}", type="primary", disabled=True, use_container_width=True)
+                            st.button("View Full A3 Report", key=f"report_{event['id']}", type="primary", disabled=True, use_container_width=True, help="Full PDF report not available in this demo.")
 
                         st.markdown("**Problem Background:**")
                         st.markdown(f"> {event['problem_background']}")
@@ -205,6 +207,10 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
+        logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
 
     except Exception as e:
         st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
