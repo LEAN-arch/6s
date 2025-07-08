@@ -135,8 +135,12 @@ def get_glossary_content():
             {"term": "Takt Time", "definition": "The rate at which a finished product needs to be completed to meet customer demand. It is the 'heartbeat' of a lean system.", "formula": r"Takt\ Time = \frac{\text{Available Production Time per Day}}{\text{Customer Demand per Day}}"},
             {"term": "Gemba (現場)", "definition": "Japanese for 'the real place.' It refers to the location where value is created, such as the factory floor or a service desk."},
             {"term": "Kaizen (改善)", "definition": "A strategy of 'Continuous Improvement' where small, ongoing, positive changes are made to a process. It emphasizes employee involvement and a culture of incremental enhancement."},
-            {"term": "Muda (無駄)", "definition": "Japanese for 'waste.' It refers to any activity that consumes resources but creates no value for the customer. The 7 classic wastes are: Transport, Inventory, Motion, Waiting, Overproduction, Over-processing, and Defects (TIMWOOD)."},
+            {"term": "Muda (無駄), Mura (斑), Muri (無理)", "definition": "The '3 M's' of waste in the Toyota Production System. **Muda:** Non-value-added waste. **Mura:** Unevenness or irregularity. **Muri:** Overburdening equipment or operators."},  
+            { "term": "Muda (無駄)", "definition": "Japanese for 'waste.' It refers to any activity that consumes resources but creates no value for the customer. The 7 classic wastes are: Transport, Inventory, Motion, Waiting, Overproduction, Over-processing, and Defects (TIMWOOD)."},
             {"term": "Poka-Yoke (ポカヨケ)", "definition": "A 'mistake-proofing' mechanism. Any technique in a process that helps to avoid errors by preventing, correcting, or drawing attention to them as they occur."},
+            {"term": "Jidoka (自働化)", "definition": "Autonomation or 'automation with a human touch.' The principle of designing equipment to stop automatically and signal immediately when a problem occurs, preventing the mass production of defects."},
+            {"term": "Heijunka (平準化)", "definition": "Production leveling. The process of smoothing the type and quantity of production over a fixed period. This reduces Mura (unevenness) and minimizes inventory."},
+            {"term": "Kanban (看板)", "definition": "A scheduling system for lean manufacturing and just-in-time manufacturing (JIT). It is a visual signal (e.g., a card) that triggers an action, such as replenishing a part."},
         ],
         "Six Sigma Concepts": [
             {"term": "DMAIC", "definition": "The core data-driven improvement cycle: **D**efine the problem, **M**easure key aspects of the current process, **A**nalyze the data to investigate root causes, **I**mprove the process, and **C**ontrol the future state."},
@@ -151,11 +155,15 @@ def get_glossary_content():
             {"term": "ANOVA (Analysis of Variance)", "definition": "A statistical test used to determine whether there are any statistically significant differences between the means of two or more independent groups."},
             {"term": "Regression Analysis", "definition": "A set of statistical processes for estimating the relationships between a dependent variable (the 'output' or 'Y') and one or more independent variables (the 'inputs' or 'X's')."},
             {"term": "Design of Experiments (DOE)", "definition": "A systematic method to determine the relationship between factors affecting a process and the output of that process. Used to find the optimal 'recipe' for a process with minimal experimental runs."}
+            {"term": "Confidence Interval", "definition": "A range of values, derived from sample statistics, that is likely to contain the value of an unknown population parameter. A 95% confidence interval means we are 95% confident the true population mean lies within that range."},       
+            {"term": "Gage R&R (Repeatability & Reproducibility)", "definition": "A statistical study to evaluate the precision of a measurement system. **Repeatability** is the variation from the same operator using the same tool. **Reproducibility** is the variation between different operators using the same tool."},
+            {"term": "Control Chart (Shewhart Chart)", "definition": "A graph used to study how a process changes over time. It shows a center line for the average, an upper line for the upper control limit, and a lower line for the lower control limit.", "formula": r"UCL/LCL = \bar{\bar{x}} \pm 3 \frac{\bar{R}}{d_2} \quad \text{(for Xbar-R charts)}"},
         ],
         "AI/ML for Operations": [
             {"term": "Supervised Learning", "definition": "A type of machine learning where the model learns from data that has been manually labeled with the correct outcomes. Analogy: Learning with an 'answer key.' (e.g., training a model on historical data of 'Pass' vs. 'Fail' parts)."},
             {"term": "Unsupervised Learning", "definition": "A type of machine learning where the model works on its own to discover patterns and information in unlabeled data. Analogy: Finding hidden groups without an answer key. (e.g., K-Means clustering to find different failure modes)."},
             {"term": "Random Forest", "definition": "A powerful supervised learning algorithm that is an 'ensemble' of many individual decision trees. It averages their predictions to produce a more accurate and stable result. Excellent for predictive quality tasks."},
+            {"term": "Isolation Forest", "definition": "An unsupervised algorithm excellent for anomaly detection. It works by 'isolating' outliers, which are easier to separate from the main data cluster."},
             {"term": "SHAP (SHapley Additive exPlanations)", "definition": "A game-theoretic approach used to explain the output of any machine learning model. It connects optimal credit allocation with local explanations to understand *why* a model made a specific prediction for a single instance."}
         ]
     }
