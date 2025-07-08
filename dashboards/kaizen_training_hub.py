@@ -185,44 +185,100 @@ def load_data(_ssm: SessionStateManager, key: str) -> Any:
 def validate_kaizen_event(event: Dict[str, Any]) -> bool:
     """Validate the structure of a Kaizen event."""
     required_keys = ["id", "title", "site", "date", "problem_background", "analysis_and_countermeasures", "quantified_results", "key_insight"]
-    return all(key in event for key in required_keys) and all(isinstance(event[key], str) for key in required_keys)
+    try:
+        # Check if all required keys are present
+        missing_keys = [key for key in required_keys if key not in event]
+        if missing_keys:
+            logger.error(f"Kaizen event validation failed: Missing keys {missing_keys} in event {event.get('id', 'unknown')}")
+            return False
+        
+        # Check if all required fields are non-empty strings
+        for key in required_keys:
+            if not isinstance(event[key], str) or not event[key].strip():
+                logger.error(f"Kaizen event validation failed: Invalid or empty value for {key} in event {event.get('id', 'unknown')}")
+                return False
+        
+        return True
+    except Exception as e:
+        logger.error(f"Kaizen event validation failed for event {event.get('id', 'unknown')}: {e}", exc_info=True)
+        return False
 
 def validate_training_material(material: Dict[str, Any]) -> bool:
     """Validate the structure of a training material."""
     required_keys = ["id", "title", "type", "duration_hr", "target_audience", "link", "icon", "description", "learning_objectives", "recommended_reading"]
-    return (
-        all(key in material for key in required_keys) and
-        isinstance(material["id"], str) and
-        isinstance(material["title"], str) and
-        isinstance(material["type"], str) and
-        isinstance(material["duration_hr"], (int, float)) and
-        isinstance(material["target_audience"], str) and
-        isinstance(material["link"], str) and
-        isinstance(material["icon"], str) and
-        isinstance(material["description"], str) and
-        isinstance(material["learning_objectives"], list) and
-        all(isinstance(obj, str) for obj in material["learning_objectives"]) and
-        isinstance(material["recommended_reading"], str)
-    )
+    try:
+        # Check if all required keys are present
+        missing_keys = [key for key in required_keys if key not in material]
+        if missing_keys:
+            logger.error(f"Training material validation failed: Missing keys {missing_keys} in material {material.get('id', 'unknown')}")
+            return False
+
+        # Validate types and non-empty values
+        if not isinstance(material["id"], str) or not material["id"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'id' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["title"], str) or not material["title"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'title' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["type"], str) or not material["type"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'type' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["duration_hr"], (int, float)) or material["duration_hr"] <= 0:
+            logger.error(f"Training material validation failed: Invalid 'duration_hr' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["target_audience"], str) or not material["target_audience"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'target_audience' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["link"], str):
+            logger.error(f"Training material validation failed: Invalid 'link' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["icon"], str) or not material["icon"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'icon' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["description"], str) or not material["description"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'description' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["learning_objectives"], list) or not material["learning_objectives"] or not all(isinstance(obj, str) and obj.strip() for obj in material["learning_objectives"]):
+            logger.error(f"Training material validation failed: Invalid or empty 'learning_objectives' in material {material.get('id', 'unknown')}")
+            return False
+        if not isinstance(material["recommended_reading"], str) or not material["recommended_reading"].strip():
+            logger.error(f"Training material validation failed: Invalid or empty 'recommended_reading' in material {material.get('id', 'unknown')}")
+            return False
+
+        return True
+    except Exception as e:
+        logger.error(f"Training material validation failed for material {material.get('id', 'unknown')}: {e}", exc_info=True)
+        return False
 
 def validate_glossary(glossary: Dict[str, List[Dict[str, str]]]) -> bool:
     """Validate the structure of the glossary."""
     required_term_keys = ["term", "definition"]
-    for category, terms in glossary.items():
-        if not isinstance(terms, list):
-            return False
-        for term in terms:
-            if not all(key in term for key in required_term_keys) or not all(isinstance(term[key], str) for key in required_term_keys):
+    try:
+        for category, terms in glossary.items():
+            if not isinstance(terms, list):
+                logger.error(f"Glossary validation failed: Category {category} has non-list terms")
                 return False
-            if "formula" in term and not isinstance(term["formula"], str):
-                return False
-    return True
+            for term in terms:
+                missing_keys = [key for key in required_term_keys if key not in term]
+                if missing_keys:
+                    logger.error(f"Glossary validation failed: Missing keys {missing_keys} in term {term.get('term', 'unknown')}")
+                    return False
+                if not all(isinstance(term[key], str) and term[key].strip() for key in required_term_keys):
+                    logger.error(f"Glossary validation failed: Invalid or empty values in term {term.get('term', 'unknown')}")
+                    return False
+                if "formula" in term and not isinstance(term["formula"], str):
+                    logger.error(f"Glossary validation failed: Invalid formula in term {term.get('term', 'unknown')}")
+                    return False
+        return True
+    except Exception as e:
+        logger.error(f"Glossary validation failed: {e}", exc_info=True)
+        return False
 
 def render_glossary(glossary: Dict[str, List[Dict[str, str]]]) -> None:
     """Render the glossary tab with consistent styling."""
     try:
         if not validate_glossary(glossary):
-            st.error("Invalid glossary data structure.")
+            st.error("Invalid glossary data structure. Please contact your system administrator.")
             logger.error("Glossary data validation failed")
             return
 
@@ -246,7 +302,7 @@ def render_glossary(glossary: Dict[str, List[Dict[str, str]]]) -> None:
                                     logger.error(f"LaTeX rendering failed for {item['term']}: {e}", exc_info=True)
                         st.divider()
     except Exception as e:
-        st.error(f"Failed to render glossary: {e}")
+        st.error(f"Failed to render glossary: {e}. Please contact your system administrator.")
         logger.error(f"Glossary rendering failed: {e}", exc_info=True)
 
 def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
@@ -281,8 +337,8 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                 st.markdown("Each event below is a testament to a team's dedication to making our work better. Review these A3 summaries to understand the 'Why' behind the change and to find inspiration for your own area.")
 
                 if not kaizen_events:
-                    st.warning("No Kaizen events have been logged in the data model.")
-                    logger.warning("No valid Kaizen events found")
+                    st.warning("No Kaizen events have been logged in the data model. Please check the data source or contact your system administrator.")
+                    logger.warning("No valid Kaizen events found after validation")
                 else:
                     df_events = pd.DataFrame(kaizen_events).sort_values(by='date', ascending=False)
                     for _, event in df_events.iterrows():
@@ -316,7 +372,7 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
 
                         st.write("")  # Adds vertical space
             except Exception as e:
-                st.error(f"Failed to render Kaizen Event Log: {e}")
+                st.error(f"Failed to render Kaizen Event Log: {e}. Please contact your system administrator.")
                 logger.error(f"Kaizen Event Log rendering failed: {e}", exc_info=True)
 
         # ==================== TRAINING LIBRARY ====================
@@ -326,8 +382,8 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                 st.markdown("A commitment to quality begins with a commitment to learning. This curated library provides resources to develop skills at every level of the organization, from foundational principles to advanced statistical methods.")
 
                 if not training_materials:
-                    st.warning("No training materials are available in the data model.")
-                    logger.warning("No valid training materials found")
+                    st.warning("No training materials are available in the data model. Please check the data source or contact your system administrator.")
+                    logger.warning("No valid training materials found after validation")
                 else:
                     for material in training_materials:
                         with st.container(border=True):
@@ -355,7 +411,7 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                                     help="Module not available in this demo." if material['link'] == "#" else "Launch the training module."
                                 )
             except Exception as e:
-                st.error(f"Failed to render Training Library: {e}")
+                st.error(f"Failed to render Training Library: {e}. Please contact your system administrator.")
                 logger.error(f"Training Library rendering failed: {e}", exc_info=True)
 
         # ==================== GLOSSARY ====================
@@ -363,7 +419,7 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
             render_glossary(glossary)
 
     except Exception as e:
-        st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
+        st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}. Please contact your system administrator.")
         logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
 
 if __name__ == "__main__":
@@ -371,5 +427,5 @@ if __name__ == "__main__":
         ssm = SessionStateManager()
         render_kaizen_training_hub(ssm)
     except Exception as e:
-        st.error("Failed to initialize SessionStateManager.")
+        st.error("Failed to initialize SessionStateManager. Please contact your system administrator.")
         logger.error(f"SessionStateManager initialization failed: {e}", exc_info=True)
