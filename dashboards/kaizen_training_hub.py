@@ -101,7 +101,8 @@ def get_overhauled_training_data():
             """,
             "quantified_results": "Reduced the specific 'Signal Lost' failure rate from 4% to 0.1% within one week of implementation. Rework costs were reduced by an estimated $250k annually.",
             "key_insight": "Technical problems are often symptoms of process or design flaws. Persistently asking 'Why' moves the team beyond blaming components or people to fixing the underlying system."
-        },          
+        },
+        {
             "id": "TRN-101",
             "title": "A3 Thinking: The Art of Problem Solving on a Single Page",
             "type": "eLearning",
@@ -117,8 +118,7 @@ def get_overhauled_training_data():
                 "Visually communicate root cause analysis and countermeasures."
             ],
             "recommended_reading": "'Managing to Learn' by John Shook"
-        },
-        {
+        }, {
             "id": "TRN-102",
             "title": "Statistical Process Control (SPC) Masterclass",
             "type": "Workshop Slides",
@@ -188,7 +188,7 @@ def get_glossary_content():
             {"term": "Process Capability (Cp)", "definition": "Measures the potential capability of a process, assuming it is perfectly centered between the specification limits. It answers: 'Is the process spread narrow enough?'", "formula": r"C_p = \frac{USL - LSL}{6\sigma}"},
             {"term": "Process Capability (Cpk)", "definition": "Measures the actual capability of a process, accounting for its centering. It represents the 'worst-case' side of the process distribution. A Cpk of >1.33 is often a minimum target.", "formula": r"C_{pk} = \min\left(\frac{USL - \mu}{3\sigma}, \frac{\mu - LSL}{3\sigma}\right)"},
             {"term": "COPQ (Cost of Poor Quality)", "definition": "The total financial loss incurred from producing defective products or services. Includes internal failure costs (scrap, rework) and external failure costs (warranty claims, returns)."},
-            {"term": "Voice of the Customer (VOC)", "definition": "The process of capturing customer expectations, preferences, and aversions. The VOC is translated into Critical-to-Quality (CTQ) requirements for the process."}
+            {"term": "Voice of the Customer (VOC)", "definition": "The process of capturing customer expectations, preferences, and aversions. The VOC is translated into Critical-to-Quality (CTQ) requirements for the process."},
             {"term": "Rolled Throughput Yield (RTY)", "definition": "The probability that a multi-step process will produce a defect-free unit. It is the product of the First Time Yields (FTY) of each process step.", "formula": r"RTY = FTY_1 \times FTY_2 \times \dots \times FTY_n"},
         ],
         "Statistical & Analytical Methods": [
@@ -230,7 +230,7 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
         glossary = get_glossary_content()
 
         st.info("Select a tab to review the A3 reports from past Kaizen events or to access our curated library of quality and CI training.", icon="🧠")
-        events_tab, training_tab = st.tabs(["🏆 **Kaizen Event A3 Log**", "📚 **Training & Development Library**", "📖 **Methodologies & Terminology Glossary**"])
+        events_tab, training_tab, glossary_tab = st.tabs(["🏆 **Kaizen Event A3 Log**", "📚 **Training & Development Library**", "📖 **Methodologies & Terminology Glossary**"])
 
         # ==================== KAIZEN EVENT LOG ====================
         with events_tab:
@@ -307,8 +307,13 @@ def render_kaizen_training_hub(ssm: SessionStateManager) -> None:
                     for item in terms:
                         st.markdown(f"**{item['term']}**")
                         st.markdown(f"> {item['definition']}")
+                        if 'formula' in item:
+                            st.latex(item['formula'])
                         st.write("") # Add a little space
                         
+    except Exception as e:
+        st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
+        logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
     except Exception as e:
         st.error(f"An error occurred while rendering the Kaizen & Training Hub: {e}")
         logger.error(f"Failed to render kaizen and training hub: {e}", exc_info=True)
