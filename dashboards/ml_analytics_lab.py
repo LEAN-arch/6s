@@ -115,25 +115,113 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
             except Exception as e: st.error(f"An error occurred in the Predictive Quality tab: {e}")
 
     # ==================== TAB 2: TEST EFFECTIVENESS ====================
-    with tabs[1]:
-        st.subheader("Challenge 2: Evaluate the Power of a Go/No-Go Release Test")
-        with st.expander("SME Deep Dive: The ROC Curve"):
-            st.markdown("""... (explanation content preserved) ...""")
-        df_release = ssm.get_data("release_data")
-        if df_release is None or df_release.empty: st.warning("Release test data not available.")
-        else:
-            try:
-                df_release['true_status_numeric'] = df_release['true_status'].apply(lambda x: 1 if x == 'Fail' else 0)
-                fpr, tpr, thresholds = roc_curve(df_release['true_status_numeric'], df_release['test_measurement'])
-                roc_auc = roc_auc_score(df_release['true_status_numeric'], df_release['test_measurement'])
-                slider_val = st.slider("Select Test Cut-off Threshold", float(df_release['test_measurement'].min()), float(df_release['test_measurement'].max()), float(df_release['test_measurement'].mean()), key="roc_slider")
-                idx = (np.abs(thresholds - slider_val)).argmin()
-                fig = go.Figure(); fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name=f'ROC Curve (AUC = {roc_auc:.3f})')); fig.add_trace(go.Scatter(x=[fpr[idx]], y=[tpr[idx]], mode='markers', marker=dict(size=15, color='red'), name='Current Threshold')); fig.update_layout(title="<b>Interactive ROC Analysis</b>", xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
-                y_pred = (df_release['test_measurement'] >= slider_val).astype(int); cm = confusion_matrix(df_release['true_status_numeric'], y_pred); tn, fp, fn, tp = cm.ravel()
-                col1, col2 = st.columns(2);
-                with col1: st.plotly_chart(fig, use_container_width=True)
-                with col2: st.metric("Test Power (AUC)", f"{roc_auc:.3f}"); st.write("Confusion Matrix at this Threshold:"); cm_df = pd.DataFrame([[f"Caught (TP): {tp}", f"Missed (FN): {fn}"], [f"False Alarm (FP): {fp}", f"Correct (TN): {tn}"]], columns=["Predicted: Fail", "Predicted: Pass"], index=["Actual: Fail", "Actual: Pass"]); st.dataframe(cm_df)
-            except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
+with tabs[1]:
+    st.subheader("Challenge 2: Evaluate the Power of a Go/No-Go Release Test")
+    
+    with st.expander("SME Deep Dive: The ROC Curve"):
+        st.markdown("""... (explanation content preserved) ...""")
+    
+    df_release = ssm.get_data("release_data")
+    
+    if df_release is None or df_release.empty:
+        st.warning("Release test data not available.")
+    else:
+        try:
+            # Data Preparation
+            if 'true_status' not in df_release.columns or 'test_measurement' not in df_release.columns:
+                raise ValueError("Required columns ('true_status', 'test_measurement') not found in dataset")
+                
+            df_release['true_status_numeric'] = df_release['true_status'].apply(
+                lambda x: 1 if x.lower() in ['fail', 'f'] else 0  # More robust string matching
+            )
+            
+            # Calculate ROC metrics
+            fpr, tpr, thresholds = roc_curve(df_release['true_status_numeric'], df_release['test_measurement'])
+            roc_auc = roc_auc_score(df_release['true_status_numeric'], df_release['test_measurement'])
+            
+            # Interactive elements
+            min_val = float(df_release['test_measurement'].min())
+            max_val = float(df_release['test_measurement'].max())
+            default_val = float(np.median(thresholds))  # More meaningful default
+            
+            slider_val = st.slider(
+                "Select Test Cut-off Threshold", 
+                min_val, 
+                max_val, 
+                default_val,
+                format="%.3f",  # Better precision display
+                key="roc_slider",
+                help="Adjust to see how threshold affects test performance"
+            )
+            
+            # Find closest threshold index
+            idx = (np.abs(thresholds - slider_val)).argmin()
+            
+            # Create ROC Curve plot
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=fpr, 
+                y=tpr, 
+                mode='lines', 
+                name=f'ROC Curve (AUC = {roc_auc:.3f})',
+                line=dict(width=3)
+            ))
+            fig.add_trace(go.Scatter(
+                x=[fpr[idx]], 
+                y=[tpr[idx]], 
+                mode='markers', 
+                marker=dict(size=15, color='red'), 
+                name=f'Threshold: {slider_val:.3f}'
+            ))
+            fig.update_layout(
+                title="<b>Interactive ROC Analysis</b>",
+                xaxis_title="False Positive Rate (1 - Specificity)",
+                yaxis_title="True Positive Rate (Sensitivity)",
+                hovermode='x unified'
+            )
+            
+            # Calculate performance metrics
+            y_pred = (df_release['test_measurement'] >= slider_val).astype(int)
+            cm = confusion_matrix(df_release['true_status_numeric'], y_pred)
+            tn, fp, fn, tp = cm.ravel()
+            
+            # Calculate additional metrics
+            sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+            specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+            ppv = tp / (tp + fp) if (tp + fp) > 0 else 0  # Positive predictive value
+            
+            # Display results
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.plotly_chart(fig, use_container_width=True)
+                
+            with col2:
+                st.metric("Area Under Curve (AUC)", f"{roc_auc:.3f}",
+                          help="Overall measure of test discrimination power")
+                
+                st.metric("Sensitivity (Recall)", f"{sensitivity:.2%}",
+                          help="Ability to correctly identify failing units")
+                
+                st.metric("Specificity", f"{specificity:.2%}",
+                          help="Ability to correctly identify passing units")
+                
+                st.metric("Positive Predictive Value", f"{ppv:.2%}",
+                          help="Probability that a positive result is correct")
+                
+                st.write("**Confusion Matrix at Current Threshold:**")
+                cm_df = pd.DataFrame(
+                    [[f"True Positive: {tp}", f"False Negative: {fn}"], 
+                     [f"False Positive: {fp}", f"True Negative: {tn}"]],
+                    columns=["Predicted: Fail", "Predicted: Pass"],
+                    index=["Actual: Fail", "Actual: Pass"]
+                )
+                st.dataframe(cm_df, use_container_width=True)
+                
+        except Exception as e:
+            st.error(f"Analysis error: {str(e)}")
+            st.error("Please verify your input data contains: "
+                   "'true_status' (Pass/Fail) and 'test_measurement' columns")
 
     # ==================== TAB 3: DRIVER ANALYSIS ====================
     with tabs[2]:
