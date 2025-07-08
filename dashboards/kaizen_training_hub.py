@@ -169,11 +169,11 @@ def get_glossary_content() -> Dict[str, List[Dict[str, str]]]:
 
 # --- Helper Functions ---
 @st.cache_data(show_spinner=False)
-def load_data(ssm: SessionStateManager, key: str) -> Any:
+def load_data(_ssm: SessionStateManager, key: str) -> Any:
     """Load data from SessionStateManager with caching and error handling."""
     try:
         logger.info(f"Loading data for key: {key}")
-        data = ssm.get_data(key)
+        data = _ssm.get_data(key)
         if data is None:
             logger.warning(f"No data found for key: {key}")
             return []
