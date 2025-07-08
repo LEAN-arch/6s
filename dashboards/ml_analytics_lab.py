@@ -144,8 +144,7 @@ def render_ml_analytics_lab(ssm: SessionStateManager) -> None:
                 with col2: st.metric("Test Power (AUC)", f"{roc_auc:.3f}"); st.write("Confusion Matrix at this Threshold:"); cm_df = pd.DataFrame([[f"Caught (TP): {tp}", f"Missed (FN): {fn}"], [f"False Alarm (FP): {fp}", f"Correct (TN): {tn}"]], columns=["Predicted: Fail", "Predicted: Pass"], index=["Actual: Fail", "Actual: Pass"]); st.dataframe(cm_df)
             except Exception as e: st.error(f"An error occurred in the Test Effectiveness tab: {e}")
 
-    # ==================== TAB 3: DRIVER ANALYSIS ====================
-# ==================== TAB 3: DRIVER ANALYSIS (Bulletproof Implementation) ====================
+ # ==================== TAB 3: DRIVER ANALYSIS (Modern API Implementation) ====================
 with tabs[2]:
     st.subheader("Challenge 3: Understand the 'Why' Behind Failures")
     with st.expander("SME Deep Dive: ANOVA vs. SHAP"):
@@ -163,33 +162,24 @@ with tabs[2]:
     if df_pred is None or df_pred.empty: st.warning("Predictive quality data not available.")
     else:
         try:
-            # --- Data Preparation ---
+            # --- Data Preparation & Model Training (remains the same) ---
             features = ['in_process_temp', 'in_process_pressure', 'in_process_vibration']
             X = df_pred[features]
             y = df_pred['final_qc_outcome'].apply(lambda x: 1 if x == 'Fail' else 0)
-            
-            # This split is correct and necessary for valid modeling.
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
-
-            # --- Model Training ---
-            # Train the model. It's robust to receiving a DataFrame.
+            X_train, X_test, y_train, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
             model = RandomForestClassifier(n_estimators=100, random_state=42).fit(X_train, y_train)
             explainer = shap.TreeExplainer(model)
+            
+            # --- SME's DEFINITIVE FIX: Use the modern SHAP Explanation object ---
+            # This is the key change. Instead of getting raw values, we get a rich Explanation object.
+            # This object bundles the values and the data, making misalignment impossible.
+            with st.spinner("Calculating SHAP explanations..."):
+                shap_explanations = explainer(X_test)
 
-            # --- SME's ROBUST SHAP WORKFLOW ---
-            # Step 1: Create an explicit NumPy array from the test set. This is our 'source of truth'.
-            # The .values attribute is now deprecated in favor of .to_numpy() for clarity.
-            X_test_np = X_test.to_numpy()
-
-            # Step 2: Calculate SHAP values using the NumPy array. The output `shap_values_np` will have
-            # a shape and row order that is guaranteed to match `X_test_np`.
-            shap_values_np = explainer.shap_values(X_test_np)
-
-            # Step 3: For plotting, reconstruct a DataFrame from our NumPy 'source of truth'.
-            # This new DataFrame has a simple RangeIndex (0, 1, 2...) that perfectly aligns with the
-            # rows of `shap_values_np`. This makes any misalignment impossible.
-            X_test_for_plot = pd.DataFrame(X_test_np, columns=X_test.columns)
-            # --- END OF ROBUST WORKFLOW ---
+            # The model internally tracks its classes. "Fail" is 1. We find its index.
+            # This makes the code robust even if the class order changes.
+            fail_class_index = list(model.classes_).index(1)
+            # --- END OF DEFINITIVE FIX ---
 
             # --- Visualization ---
             col1, col2 = st.columns(2)
@@ -200,31 +190,26 @@ with tabs[2]:
 
             with col2:
                 st.markdown("###### Modern: Global Explanation (SHAP Summary)")
-                # Step 4: Use the reconstructed, perfectly aligned data for the plot.
+                # The summary_plot function is called on a slice of the Explanation object.
+                # It inherently knows about the feature values, names, and SHAP values.
+                # No more passing separate arguments for values and data.
                 fig, ax = plt.subplots()
-                shap.summary_plot(shap_values_np[1], X_test_for_plot, plot_type="dot", show=False)
+                shap.summary_plot(shap_explanations[:, :, fail_class_index], plot_type="dot", show=False)
                 st.pyplot(fig, bbox_inches='tight')
-                plt.clf() # Clear the figure to prevent state leakage in Streamlit reruns.
+                plt.clf()
 
             st.markdown("<hr>", unsafe_allow_html=True)
             st.markdown("##### Local (Single Prediction) Explanation")
             st.info("Select a specific unit to see why the model made its prediction.")
             instance_idx = st.slider("Select a Test Instance to Explain", 0, len(X_test)-1, 0)
             
-            # The force plot explains a single instance. Using .iloc provides the integer-location
-            # row from the original shuffled DataFrame, which corresponds to the same row in our NumPy arrays.
-            # This is safe and correct.
-            st_shap(shap.force_plot(
-                explainer.expected_value[1],
-                shap_values_np[1][instance_idx, :],
-                X_test.iloc[instance_idx, :], # Use original X_test here for correct feature values display
-                link="logit"
-            ))
+            # The force plot also becomes simpler and more robust.
+            # We just pass the explanation for the desired instance and class.
+            st_shap(shap.force_plot(shap_explanations[instance_idx, :, fail_class_index]))
             
         except Exception as e:
-            logger.critical(f"A critical error occurred in the Driver Analysis tab: {e}", exc_info=True)
-            st.error(f"An unexpected error occurred during Driver Analysis. This is a critical issue. Error: {e}")
-
+            logger.critical(f"A critical error occurred in the Driver Analysis tab with the modern SHAP API: {e}", exc_info=True)
+            st.error(f"An unexpected error occurred during Driver Analysis. Error: {e}")
     # ==================== TAB 4: PROCESS CONTROL ====================
     with tabs[3]:
         st.subheader("Challenge 4: Detect Unusual Behavior in a Live Process")
